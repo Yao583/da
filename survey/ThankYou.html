@@ -1,0 +1,45 @@
+{{ block title }}
+    Study Complete
+{{ endblock }}
+
+{{ block content }}
+    <div style="text-align: center; margin-top: 50px;">
+        <h4 style="color: #28a745;">Thank you for participating!</h4>
+        <p>Your responses have been securely saved.</p>
+        
+        <div class="card bg-light my-4 mx-auto" style="max-width: 400px;">
+            <div class="card-body">
+                <h5 class="card-title">Your Earnings</h5>
+                <p class="card-text mb-1">Base Payment: <strong>${{ participation_fee }}</strong></p>
+                <p class="card-text">Bonus from selected round {{winning_round}}: <strong>${{ bonus }}</strong></p>
+                <p style="font-size: 14px; color: #6c757d;">
+                    <em>(Your bonus will be processed via Prolific within 48 hours)</em>
+                </p>
+            </div>
+        </div>
+        
+        <p style="margin-top: 30px;">
+            You will be automatically redirected back to Prolific to claim your base payment in <strong>5 seconds</strong>.
+        </p>
+
+        <p style="margin-top: 40px; font-size: 14px; color: #6c757d;">
+            If you are not redirected automatically, please click the button below:
+        </p>
+        
+        <a href="{{ C.PROLIFIC_COMPLETION_URL }}" class="btn btn-primary">
+            Return to Prolific
+        </a>
+    </div>
+
+    <div style="display: none;">
+        {{ next_button }}
+    </div>
+{{ endblock }}
+
+{{ block scripts }}
+    <script>
+        setTimeout(function() {
+            window.location.href = "{{ C.PROLIFIC_COMPLETION_URL }}";
+        }, 5000); 
+    </script>
+{{ endblock }}

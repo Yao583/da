@@ -1,0 +1,40 @@
+{{ block title }}
+    Study Closed
+{{ endblock }}
+
+{{ block content }}
+    <div style="text-align: center; margin-top: 50px;">
+        <h4 style="color: #dc3545;">We could not verify this submission.</h4>
+        <p>Your session cannot continue.</p>
+
+        {{ if redirect_url }}
+            <p style="margin-top: 30px;">
+                You will be redirected in <strong>5 seconds</strong>.
+            </p>
+            <p style="margin-top: 24px; font-size: 14px; color: #6c757d;">
+                If you are not redirected automatically, click below.
+            </p>
+            <a href="{{ redirect_url }}" class="btn btn-secondary">
+                Return
+            </a>
+        {{ else }}
+            <p style="margin-top: 30px;">
+                You may now close this page.
+            </p>
+        {{ endif }}
+    </div>
+
+    <div style="display: none;">
+        {{ next_button }}
+    </div>
+{{ endblock }}
+
+{{ block scripts }}
+    {{ if redirect_url }}
+        <script>
+            setTimeout(function() {
+                window.location.href = "{{ redirect_url }}";
+            }, 5000);
+        </script>
+    {{ endif }}
+{{ endblock }}

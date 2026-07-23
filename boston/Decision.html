@@ -1,0 +1,286 @@
+{{ block styles }}
+<link href="{{ static 'da/css/style.css' }}" rel="stylesheet"/>
+<style>
+    .taken-cell { text-decoration: line-through; color: #999; }
+    #status-area { margin: 20px 0; padding: 15px; border-radius: 8px; font-size: 1.1em; }
+    .status-waiting  { background-color: #fff3cd; border: 1px solid #ffc107; }
+    .status-your-turn { background-color: #d4edda; border: 1px solid #28a745; }
+    .status-chosen   { background-color: #e2e3e5; border: 1px solid #6c757d; }
+    .status-done     { background-color: #d1ecf1; border: 1px solid #17a2b8; }
+</style>
+{{ endblock }}
+
+{{ block title }}
+    Your Decision &mdash; Period {{ round_number }}/{{ total_rounds }}
+{{ endblock }}
+
+{{ block content }}
+
+
+<p><a href="#" data-bs-toggle="modal" data-bs-target="#instructionsModal">View Instructions</a></p>
+<div style="margin-bottom: 15px; padding: 15px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+    <p><strong>Reminder:</strong></p>
+    <ul style="margin-bottom: 0;">
+        <li>You and {{ nr_others }} other participants are in a group of {{ players_per_group }} participants.</li>
+        <li><strong>You are in Group {{ my_group }}.</strong> Four participants are in Group A and four are in Group B.</li>
+        {{ if is_lowest_in_group }}
+        <li><strong>You have the lowest prize priority among the four participants in Group {{ my_group }}.</strong></li>
+        {{ endif }}
+        <li>Each participant will rank prizes. No participant will see the ranking submitted by another participant.</li>
+        <li>All unmatched participants are then randomly allocated one of the prizes still available at the end of the process.</li>
+        <li>Once a participant gets paired with a prize, the participant exits the allocation process, and the prize becomes unavailable.</li>
+        <li><strong>You cannot tell how much other participants value prizes C, D, E and F. You only know how much you value each prize.</strong></li>
+    </ul>
+</div>
+
+<div>
+    <table class="dec-table">
+        <thead>
+        <tr>
+            <th>Prizes</th>
+            {{ for row in prize_rows }}
+            <td>{{ row.letter }} ({{ row.capacity }})</td>
+            {{ endfor }}
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <th>
+                {{ if C.ALIGNED }}
+                Value to Any Participant
+                {{ else }}
+                Value to You
+                {{ endif }}
+            </th>
+            {{ for row in prize_rows }}
+            <td>${{ row.value }}</td>
+            {{ endfor }}
+        </tr>
+        {{ if C.LIVE }}
+        <tr>
+            <th>Status</th>
+            {{ for row in prize_rows }}
+                {{ if row.status == 'Available' }}
+                    <td class="prize-status-cell">Available</td>
+                {{ else }}
+                    <td class="taken-cell prize-status-cell">Taken</td>
+                {{ endif }}
+            {{ endfor }}
+        </tr>
+        {{ endif }}
+        </tbody>
+    </table>
+</div>
+
+
+<div id="status-area" class="status-your-turn">
+    <strong>Please submit your ranking</strong>
+</div>
+
+
+<div style="margin-top: 15px;">
+    {{ for rank_num in indices }}
+    <div style="margin-bottom: 10px; display: flex; align-items: center;">
+        <label style="min-width: 80px;"><strong>Rank {{ rank_num }}:</strong></label>
+        <select class="rank-dropdown form-select" style="width: auto; display: inline-block; margin-left: 8px;">
+            <option value="">-- Select one --</option>
+            {{ for letter in letters_alpha }}
+            <option value="{{ letter }}">Prize {{ letter }}</option>
+            {{ endfor }}
+            <option value="0">No Prize</option>
+        </select>
+    </div>
+    {{ endfor }}
+    <input type="hidden" name="pref_ranking" id="id_pref_ranking" value="">
+</div>
+
+
+<div>
+    <p>Once you click Confirm, your choices are final.</p>
+    <button id="button_confirm" class="btn btn-primary btn-large" type="submit">Confirm</button>
+</div>
+
+
+{# ============================================================================================= #}
+{# INSTRUCTIONS MODAL ========================================================================== #}
+{# ============================================================================================= #}
+<div class="modal fade" id="instructionsModal" tabindex="-1" role="dialog" aria-labelledby="instructionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="instructionsModalLabel">Instructions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="justify">Welcome.</p>
+        <p class="justify">This study will consist of five periods. At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+
+        <p class="heading">The Basics</p>
+        <p class="justify">In this study, you and {{ nr_others }} other participants are in an experiment. Each participant will eventually receive one of {{ players_per_group }} prizes. Each prize is worth money, but might be worth a different amount of money for each participant.</p>
+        <p class="justify">You and the other participants will each rank prizes in any order you wish. Then, the interface uses an <strong>allocation process</strong> that uses these rankings to allocate the prizes, one for each participant.</p>
+        <p class="justify">The allocation process attempts to give each participant a prize that they ranked higher rather than a prize that they ranked lower. However, this is not always possible, since the allocation process must take into account the rankings of all participants.</p>
+
+        <p class="heading">Prizes and Priorities</p>
+        <p class="justify">There are {{ players_per_group }} prizes: Two A prizes, two B prizes, one Prize C, one Prize D, one Prize E and one Prize F.</p>
+
+        <p class="justify">At the end of each round each prize will be assigned to one of the {{ players_per_group }} participants.</p>
+        <p class="justify">Participants belong to one of two groups:</p>
+        <ul>
+        <li>Four participants belong to <strong>Group A</strong>.</li>
+        <li>Four participants belong to <strong>Group B</strong>.</li>
+        </ul>
+        <p class="justify">You will know which group you belong to.</p>
+        <p class="justify">For participants in <strong>Group A</strong>, Prize A is the most valuable prize and Prize B is the second most valuable prize.</p>
+        <p class="justify">For participants in <strong>Group B</strong>, Prize B is the most valuable prize and Prize A is the second most valuable prize.</p>
+        <p class="justify">For prizes C, D, E and F, how much each prize is worth to a participant is completely uncorrelated with how much they are worth to others and whether the participant belongs to Group A or Group B. For example, just because C is more valuable to a participant than F does not mean that any other participant will also make more money from C than F. In other words, you cannot tell how much another participant values prizes C, D, E and F just from knowing how much you value these prizes.</p>
+
+        <p class="justify">For example, a Group A participant may see Prizes as in this table:</p>
+        <div>
+        <table class="dec-table">
+        <thead>
+        <tr>
+        <th>Prize</th>
+        <td>A (2)</td>
+        <td>B (2)</td>
+        <td>D (1)</td>
+        <td>F (1)</td>
+        <td>E (1)</td>
+        <td>C (1)</td>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <th>Value to You</th>
+        <td>$15</td>
+        <td>$13</td>
+        <td>$7</td>
+        <td>$5</td>
+        <td>$3</td>
+        <td>$1</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+
+        <p class="justify">Under each prize A, B, C, D, E, or F, this participant from Group A can see how much money each prize would add to their earnings. Specifically, if this participant ends up receiving prize A, it adds $15 to their earnings. If this participant ends up receiving prize B, it adds $13 to their earnings. Any participant from Group A will value Prize A at $15 and prize B at $13, but the value of the next four prizes are specific to this participant and may be different to other participants. For instance, this participant adds $7 to their earnings if they end up receiving Prize D and so on.</p>
+        <p class="justify">The number between parentheses next to the letter indicating each prize lets you know how many prizes with that letter are available. Specifically, there are two A prizes available, two B prizes available, but only one C, one D, one E and one F.</p>
+
+        <p class="justify">We also show an example for a Group B participant that may see Prizes as in this table:</p>
+        <div>
+        <table class="dec-table">
+        <thead>
+        <tr>
+        <th>Prize</th>
+        <td>B (2)</td>
+        <td>A (2)</td>
+        <td>F (1)</td>
+        <td>E (1)</td>
+        <td>C (1)</td>
+        <td>D (1)</td>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <th>Value to You</th>
+        <td>$15</td>
+        <td>$13</td>
+        <td>$7</td>
+        <td>$5</td>
+        <td>$3</td>
+        <td>$1</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+        <p class="justify">Any participant from Group B will value Prize B at $15 and prize A at $13, but the value of the next four prizes are specific to this participant and may be different to other participants.</p>
+        <p class="justify">You and the other participants <strong>cannot affect the monetary value of prizes</strong>.</p>
+
+        <p class="heading">Prize Priorities</p>
+        <p class="justify">Next, we explain what we call <strong>prize priorities</strong>.</p>
+        <p class="justify">Our computer will <strong>randomly order</strong> the {{ players_per_group }} participants in your group, including you, from 1st to {{ nr_players_ordinal }}. Everyone has an equally likely chance of being any number, and <strong>no one can affect their prize priority</strong>.</p>
+        <p class="justify">You will not know your prize priority unless you have the lowest priority within your group. That is, the participant with the lowest priority in Group A will know that they have the lowest priority in Group A and the participant with the lowest priority in Group B will know that they have the lowest priority in Group B.</p>
+
+        <p class="heading">Submit Your Ranking</p>
+        <p class="justify">Your task is to <strong>rank prizes</strong> A, B, C, D, E and F.</p>
+        <p class="justify">You can rank all prizes, but you do not have to.</p>
+        <p class="justify">You can rank each prize at most once.</p>
+        <p class="justify">For example, if you want to rank Prize A first, Prize B second, Prize C third, Prize D fourth, and rank no further prizes, you will select “A” followed by “B” followed by “C” followed by “D” and then click “Submit Ranking”.</p>
+        <p class="justify">The other participants will submit their own rankings. They <strong>do not know your ranking</strong>.</p>
+        <p class="justify">Your own ranking <strong>cannot affect the other participants' rankings</strong>.</p>
+
+        <p class="heading">Allocation Process</p>
+        <p class="justify">The interface uses the allocation process to assign prizes to participants.</p>
+        <div class="instr-section">
+        <p class="justify">How the allocation process works:</p>
+        <p class="justify"><strong>These details are important to learn</strong>: You may be able to apply your knowledge to make better decisions in deciding how many prizes you want to rank and in what order.</p>
+        <p class="justify">Some details may seem confusing at first. This is quite natural! But don't worry, things will become clearer along the way.</p>
+        </div>
+
+        <p class="heading">Overview of the allocation process</p>
+        <p class="justify">The first step pairs each participant with their highest-ranked prize. This means it is possible that more than one participant is paired to the same prize, which creates a conflict.</p>
+        <p class="justify">In the next step, possible conflicts are detected and solved. If two (or more) participants are paired to the same prize, this is a conflict.</p>
+        <p class="justify">Each conflict is solved in two steps:</p>
+        <div class="instr-section">
+        <p class="justify"><strong>Unpair:</strong></p>
+        <ul>
+        <li>If more than two participants are paired with a prize A, only the two participants with the highest priorities remain paired to one of the two prize A. The others get unpaired.</li>
+        <li>If more than two participants are paired with a prize B, only the two participants with the highest priorities remain paired to one of the two prize B. The others get unpaired.</li>
+        <li>If more than one participant is paired with prize C only the participant with the highest priority remains paired to that prize. The others get unpaired. A similar unpairing process takes place if more than one participant is paired with prize D or with prize E or with prize F.</li>
+        <li>The paired participants exit the allocation process. Their paired prizes are no longer available.</li>
+        </ul>
+        <p class="justify"><strong>Re-pair:</strong> all unpaired participants can only get re-paired to prizes that are still available. For unpaired participants, it pairs the participant with their next-highest-ranked prize.</p>
+        </div>
+        <p class="justify">Later steps continue in the same way, by detecting and solving new conflicts. Like before, if two (or more) participants are paired to the same prize, this is a conflict. The conflict is solved using the same Unpair and Re-pair steps from above.</p>
+        <p class="justify"><strong>Once a participant gets paired with a prize, the participant exits the allocation process, and the prize becomes unavailable.</strong></p>
+        <p class="justify">When there are no more conflicts, the first part of the allocation process is over.</p>
+        <p class="justify">At the end of this first part of the allocation process, some participants have received prizes and some participants may be unmatched. Likewise, some prizes were allocated to participants, and some prizes may remain available.</p>
+
+        <hr class="instr-divider">
+        <p class="heading">Second Allocation Process</p>
+        <p class="justify">Every unmatched participant, and only those, participate in the second allocation process, and all prizes that are still available, and only those, participate in the second allocation process.</p>
+        <div class="instr-section">
+        <p class="justify">The second part of the allocation process works as follows. Every participant who is unmatched randomly receives one of the prizes that are still available. In this second allocation process, your ranking of prizes is not taken into account. At the end of the second allocation process, every previously unmatched participant is matched to a prize, whether they ranked it or not.</p>
+        <p class="justify">Therefore, after the first and the second part of the allocation process, every participant is matched to a prize which determines their earnings for this round.</p>
+        </div>
+
+        <p class="heading">Summary</p>
+        <p class="justify">This study consists of five periods. In each period, how much each prize pays to you is randomly determined. Make sure that you read the table carefully.</p>
+        <p class="justify">At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Back to Decision</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+     function showhide() {
+           var div = document.getElementById("confirm_next");
+           div.style.display = "block";
+     }
+
+    function updateRanking() {
+         var selects = document.querySelectorAll('.rank-dropdown');
+         var ranking = '';
+         selects.forEach(function(sel) {
+             ranking += sel.value ? sel.value : '-'; 
+         });
+         document.getElementById('id_pref_ranking').value = ranking;
+     }
+
+     document.querySelectorAll('.rank-dropdown').forEach(function(sel) {
+         sel.addEventListener('change', updateRanking);
+     });
+
+     var form = document.querySelector('form');
+     if (form) {
+         form.addEventListener('submit', function() { updateRanking(); });
+     }
+</script>
+
+
+{{ endblock }}

@@ -1,0 +1,567 @@
+{{ block styles }}
+<link href="{{ static 'da/css/style.css' }}" rel="stylesheet"/>
+<style>
+    .taken-cell { text-decoration: line-through; color: #999; }
+    .prize-status-cell { min-width: 95px; text-align: center; }
+    #status-area { margin: 20px 0; padding: 15px; border-radius: 8px; font-size: 1.1em; }
+    .status-your-turn { background-color: #d4edda; border: 1px solid #28a745; }
+    .status-done     { background-color: #d1ecf1; border: 1px solid #17a2b8; }
+    .choice-inline { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ranking-row.summary-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+    .ranking-row.summary-row .row-label { margin-bottom: 0 !important; }
+    .summary-change-btn { display: none; }
+    .prompt-line { display: block; }
+    #step-feedback { color: #721c24; font-weight: 600; margin-top: 8px; display: none; }
+</style>
+{{ endblock }}
+
+{{ block title }}
+    Your Decision &mdash; Period {{ round_number }}/{{ total_rounds }}
+{{ endblock }}
+
+{{ block content }}
+
+
+<p><a href="#" data-bs-toggle="modal" data-bs-target="#instructionsModal">View Instructions</a></p>
+<div style="margin-bottom: 15px; padding: 15px; border: 1px solid #ffc107; border-radius: 8px; background-color: #fff3cd;">
+    <p><strong>Reminder:</strong></p>
+    <ul style="margin-bottom: 0;">
+        <li>You and {{ nr_others }} other participants are in a group of {{ players_per_group }} participants.</li>
+        <li><strong>You are in Group {{ my_group }}.</strong> Four participants are in Group A and four are in Group B.</li>
+        {{ if is_lowest_in_group }}
+        <li><strong>You have the lowest prize priority among the four participants in Group {{ my_group }}.</strong></li>
+        {{ endif }}
+        <li>Each participant will rank prizes. No participant will see the ranking submitted by another participant.</li>
+        <li>All unmatched participants are then randomly allocated one of the prizes still available at the end of the process.</li>
+        <li>You submit your ranking through your <strong>robot agent</strong>. You give it a complete plan now: what to apply to if all prizes are available, and what to apply to next in each case where a prize you applied for becomes unavailable.</li>
+        <li>You will not see what happens during the allocation process. Your robot simply follows the plan you give it here.</li>
+        <li>You cannot tell how much other participants value prizes C, D, E and F. You only know how much you value each prize.</li>
+    </ul>
+</div>
+
+<div>
+    <table class="dec-table">
+        <thead>
+        <tr>
+            <th>Prizes</th>
+            {{ for row in prize_rows }}
+            <td>{{ row.letter }} ({{ row.capacity }})</td>
+            {{ endfor }}
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+            <th>
+                {{ if C.ALIGNED }}
+                Value to Any Participant
+                {{ else }}
+                Value to You
+                {{ endif }}
+            </th>
+            {{ for row in prize_rows }}
+            <td>${{ row.value }}</td>
+            {{ endfor }}
+        </tr>
+        <tr id="status-if-row">
+            <th>Status: If</th>
+            {{ for row in prize_rows }}
+            <td class="prize-status-cell" data-prize="{{ row.letter }}">Available</td>
+            {{ endfor }}
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+
+<div id="status-area" class="status-your-turn">
+    <strong>Tell your robot agent what to apply to, case by case. Your answers cover every situation that could come up during the allocation process.</strong>
+</div>
+
+<div style="margin-top: 15px;" id="ranking-container">
+    {{ for i in indices }}
+    <div class="ranking-row" id="row-{{ i }}" style="display: none; margin-bottom: 15px;">
+        <p class="row-label" id="label-{{ i }}" style="margin-bottom: 6px;"></p>
+        <div class="choice-inline">
+            <select class="rank-dropdown form-select" data-rank="{{ i }}" style="width: auto;">
+                <option value="">-- Select one --</option>
+                {{ for letter in letters_alpha }}
+                <option value="{{ letter }}">Prize {{ letter }}</option>
+                {{ endfor }}
+                <option value="0">No Prize</option>
+            </select>
+            <button type="button" class="btn btn-outline-primary btn-sm summary-change-btn">Change</button>
+        </div>
+    </div>
+    {{ endfor }}
+    <input type="hidden" name="pref_ranking" id="id_pref_ranking" value="">
+    <div id="step-feedback"></div>
+</div>
+
+
+<div>
+    <p id="confirm-helper-text" style="margin-bottom: 8px;"></p>
+    <button id="button_confirm" class="btn btn-primary btn-large" type="button">Next</button>
+</div>
+
+{# ============================================================================================= #}
+{# INSTRUCTIONS MODAL ========================================================================== #}
+{# ============================================================================================= #}
+<div class="modal fade" id="instructionsModal" tabindex="-1" role="dialog" aria-labelledby="instructionsModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="instructionsModalLabel">Instructions</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p class="justify">Welcome.</p>
+        <p class="justify">This study will consist of five periods. At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+
+        <p class="heading">The Basics</p>
+        <p class="justify">In this study, you and {{ nr_others }} other participants are in an experiment. Each participant will eventually receive one of {{ players_per_group }} prizes. Each prize is worth money, but might be worth a different amount of money for each participant.</p>
+        <p class="justify">You and the other participants will each rank prizes in any order you wish. Then, the interface uses an <strong>allocation process</strong> that uses these rankings to allocate the prizes, one for each participant.</p>
+        <p class="justify">The allocation process attempts to give each participant a prize that they ranked higher rather than a prize that they ranked lower. However, this is not always possible, since the allocation process must take into account the rankings of all participants.</p>
+
+        <p class="heading">Prizes and Priorities</p>
+        <p class="justify">There are {{ players_per_group }} prizes: Two A prizes, two B prizes, one Prize C, one Prize D, one Prize E and one Prize F.</p>
+
+        <p class="justify">At the end of each round each prize will be assigned to one of the {{ players_per_group }} participants.</p>
+        <p class="justify">Participants belong to one of two groups:</p>
+        <ul>
+        <li>Four participants belong to <strong>Group A</strong>.</li>
+        <li>Four participants belong to <strong>Group B</strong>.</li>
+        </ul>
+        <p class="justify">You will know which group you belong to.</p>
+        <p class="justify">For participants in <strong>Group A</strong>, Prize A is the most valuable prize and Prize B is the second most valuable prize.</p>
+        <p class="justify">For participants in <strong>Group B</strong>, Prize B is the most valuable prize and Prize A is the second most valuable prize.</p>
+        <p class="justify">For prizes C, D, E and F, how much each prize is worth to a participant is completely uncorrelated with how much they are worth to others and whether the participant belongs to Group A or Group B. For example, just because C is more valuable to a participant than F does not mean that any other participant will also make more money from C than F. In other words, you cannot tell how much another participant values prizes C, D, E and F just from knowing how much you value these prizes.</p>
+
+        <p class="justify">For example, a Group A participant may see Prizes as in this table:</p>
+        <div>
+        <table class="dec-table">
+        <thead>
+        <tr>
+        <th>Prize</th>
+        <td>A (2)</td>
+        <td>B (2)</td>
+        <td>D (1)</td>
+        <td>F (1)</td>
+        <td>E (1)</td>
+        <td>C (1)</td>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <th>Value to You</th>
+        <td>$15</td>
+        <td>$13</td>
+        <td>$7</td>
+        <td>$5</td>
+        <td>$3</td>
+        <td>$1</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+
+        <p class="justify">Under each prize A, B, C, D, E, or F, this participant from Group A can see how much money each prize would add to their earnings. Specifically, if this participant ends up receiving prize A, it adds $15 to their earnings. If this participant ends up receiving prize B, it adds $13 to their earnings. Any participant from Group A will value Prize A at $15 and prize B at $13, but the value of the next four prizes are specific to this participant and may be different to other participants. For instance, this participant adds $7 to their earnings if they end up receiving Prize D and so on.</p>
+        <p class="justify">The number between parentheses next to the letter indicating each prize lets you know how many prizes with that letter are available. Specifically, there are two A prizes available, two B prizes available, but only one C, one D, one E and one F.</p>
+
+        <p class="justify">We also show an example for a Group B participant that may see Prizes as in this table:</p>
+        <div>
+        <table class="dec-table">
+        <thead>
+        <tr>
+        <th>Prize</th>
+        <td>B (2)</td>
+        <td>A (2)</td>
+        <td>F (1)</td>
+        <td>E (1)</td>
+        <td>C (1)</td>
+        <td>D (1)</td>
+        </tr>
+        </thead>
+        <tbody>
+        <tr>
+        <th>Value to You</th>
+        <td>$15</td>
+        <td>$13</td>
+        <td>$7</td>
+        <td>$5</td>
+        <td>$3</td>
+        <td>$1</td>
+        </tr>
+        </tbody>
+        </table>
+        </div>
+        <p class="justify">Any participant from Group B will value Prize B at $15 and prize A at $13, but the value of the next four prizes are specific to this participant and may be different to other participants.</p>
+        <p class="justify">You and the other participants <strong>cannot affect the monetary value of prizes</strong>.</p>
+
+        <p class="heading">Prize Priorities</p>
+        <p class="justify">Next, we explain what we call <strong>prize priorities</strong>.</p>
+        <p class="justify">Our computer will <strong>randomly order</strong> the {{ players_per_group }} participants in your group, including you, from 1st to {{ nr_players_ordinal }}. Everyone has an equally likely chance of being any number, and <strong>no one can affect their prize priority</strong>.</p>
+        <p class="justify">You will not know your prize priority unless you have the lowest priority within your group. That is, the participant with the lowest priority in Group A will know that they have the lowest priority in Group A and the participant with the lowest priority in Group B will know that they have the lowest priority in Group B.</p>
+
+        <p class="heading">Submit Your Ranking</p>
+        <p class="justify">Your task is to <strong>rank prizes</strong> A, B, C, D, E and F.</p>
+        <p class="justify">You can rank all prizes, but you do not have to.</p>
+        <p class="justify">You can rank each prize at most once.</p>
+        <p class="justify">For example, if you want to rank Prize A first, Prize B second, Prize C third, Prize D fourth, and rank no further prizes, you will select “A” followed by “B” followed by “C” followed by “D” and then click “Submit Ranking”.</p>
+        <p class="justify">The other participants will submit their own rankings. They <strong>do not know your ranking</strong>.</p>
+        <p class="justify">Your own ranking <strong>cannot affect the other participants' rankings</strong>.</p>
+
+        <p class="heading">Allocation Process</p>
+        <p class="justify">The interface uses the allocation process to assign prizes to participants.</p>
+        <div class="instr-section">
+        <p class="justify">How the allocation process works:</p>
+        <p class="justify"><strong>These details are important to learn</strong>: You may be able to apply your knowledge to make better decisions in deciding how many prizes you want to rank and in what order.</p>
+        <p class="justify">Some details may seem confusing at first. This is quite natural! But don't worry, things will become clearer along the way.</p>
+        </div>
+
+        <p class="heading">Overview of the allocation process</p>
+        <p class="justify">The first step pairs each participant with their highest-ranked prize. This means it is possible that more than one participant is paired to the same prize, which creates a conflict.</p>
+        <p class="justify">In the next step, possible conflicts are detected and solved. If two (or more) participants are paired to the same prize, this is a conflict.</p>
+        <p class="justify">Each conflict is solved in two steps:</p>
+        <div class="instr-section">
+        <p class="justify"><strong>Unpair:</strong></p>
+        <ul>
+        <li>If more than two participants are paired with a prize A, only the two participants with the highest priorities remain paired to one of the two prize A. The others get unpaired.</li>
+        <li>If more than two participants are paired with a prize B, only the two participants with the highest priorities remain paired to one of the two prize B. The others get unpaired.</li>
+        <li>If more than one participant is paired with prize C only the participant with the highest priority remains paired to that prize. The others get unpaired. A similar unpairing process takes place if more than one participant is paired with prize D or with prize E or with prize F.</li>
+        <li>The paired participants exit the allocation process. Their paired prizes are no longer available.</li>
+        </ul>
+        <p class="justify"><strong>Re-pair:</strong> all unpaired participants can only get re-paired to prizes that are still available. For unpaired participants, it pairs the participant with their next-highest-ranked prize.</p>
+        </div>
+        <p class="justify">Later steps continue in the same way, by detecting and solving new conflicts. Like before, if two (or more) participants are paired to the same prize, this is a conflict. The conflict is solved using the same Unpair and Re-pair steps from above.</p>
+        <p class="justify"><strong>Once a participant gets paired with a prize, the participant exits the allocation process, and the prize becomes unavailable.</strong></p>
+        <p class="justify">When there are no more conflicts, the first part of the allocation process is over.</p>
+        <p class="justify">At the end of this first part of the allocation process, some participants have received prizes and some participants may be unmatched. Likewise, some prizes were allocated to participants, and some prizes may remain available.</p>
+
+        <hr class="instr-divider">
+        <p class="heading">Second Allocation Process</p>
+        <p class="justify">Every unmatched participant, and only those, participate in the second allocation process, and all prizes that are still available, and only those, participate in the second allocation process.</p>
+        <div class="instr-section">
+        <p class="justify">The second part of the allocation process works as follows. Every participant who is unmatched randomly receives one of the prizes that are still available. In this second allocation process, your ranking of prizes is not taken into account. At the end of the second allocation process, every previously unmatched participant is matched to a prize, whether they ranked it or not.</p>
+        <p class="justify">Therefore, after the first and the second part of the allocation process, every participant is matched to a prize which determines their earnings for this round.</p>
+        </div>
+
+        <p class="heading">How you submit your ranking</p>
+        <p class="justify">You will submit your ranking through your own &ldquo;robot agent&rdquo;. You will provide your robot with information so that it knows what to choose for you regardless of what happens during the allocation process.</p>
+        <p class="justify">First, you will tell your robot what prize to apply for if all prizes are available.</p>
+        <p class="justify">Second, if at any point the prize you applied for becomes unavailable, then the agent needs to know what prize to apply for next. And so on.</p>
+        <p class="justify">That is, instead of selecting a ranking you will provide your agent with information so that the agent knows what to select for you initially and for any possible case when a prize you were paired with becomes unavailable.</p>
+
+        <p class="heading">Summary</p>
+        <p class="justify">This study consists of five periods. In each period, how much each prize pays to you is randomly determined. Make sure that you read the table carefully.</p>
+        <p class="justify">At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Back to Decision</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    const nrPrizes = Number('{{ nr_prizes }}');
+    const noPrizeToken = '0';
+    const selectedPrizes = new Array(nrPrizes).fill('');
+    // Mechanism-specific sentences shown once the participant has been unpaired from a prize.
+    const APPLICATION_NOTE = [
+        'If that prize has availability, you will be considered.',
+        'Your application will be considered alongside all other new applications to this prize; however, any previous applications will have priority over yours.'
+    ];;
+    let currentStep = 1;
+    let completedSteps = 0;
+    let isReviewMode = false;
+
+    function isPrizeChoice(value) {
+        return value && value !== noPrizeToken;
+    }
+
+    function unpairedBefore(stepIndex) {
+        return selectedPrizes.slice(0, stepIndex - 1).filter(function(p) { return isPrizeChoice(p); });
+    }
+
+    function formatUnpairedList(prizes) {
+        const names = prizes.map(function(p) { return 'Prize ' + p; });
+        if (names.length === 0) return '';
+        if (names.length === 1) return names[0];
+        if (names.length === 2) return 'both ' + names[0] + ' and ' + names[1];
+        return names.slice(0, -1).join(', ') + ', and ' + names[names.length - 1];
+    }
+
+    function line(text) {
+        return '<span class="prompt-line">' + text + '</span>';
+    }
+
+    function buildStepPrompt(stepIndex) {
+        if (stepIndex === 1) {
+            return line('All prizes are available.') + line('<strong>Tell my robot to apply to</strong>');
+        }
+
+        let html = line('Assume you have been unpaired from ' + formatUnpairedList(unpairedBefore(stepIndex)) + '.');
+        html += line('You may apply to any other prize.');
+        APPLICATION_NOTE.forEach(function(note) { html += line(note); });
+        html += line('<strong>In this case, tell my robot to apply to</strong>');
+        return html;
+    }
+
+    function buildLabel(rowIndex) {
+        if (rowIndex === 1) return '<strong>If all prizes are available, my robot applies to:</strong>';
+        const unpaired = unpairedBefore(rowIndex);
+        if (unpaired.length === 0) return '';
+        return '<strong>If unpaired from ' + formatUnpairedList(unpaired) + ', my robot applies to:</strong>';
+    }
+
+    function setStepFeedback(message) {
+        const box = document.getElementById('step-feedback');
+        if (!box) return;
+        if (message) {
+            box.textContent = message;
+            box.style.display = 'block';
+        } else {
+            box.textContent = '';
+            box.style.display = 'none';
+        }
+    }
+
+    function hideAllRows() {
+        for (let i = 1; i <= nrPrizes; i++) {
+            const row = document.getElementById('row-' + i);
+            if (!row) continue;
+            row.classList.remove('summary-row');
+            const changeBtn = row.querySelector('.summary-change-btn');
+            if (changeBtn) {
+                changeBtn.style.display = 'none';
+                changeBtn.onclick = null;
+            }
+            row.style.display = 'none';
+        }
+    }
+
+    // The status row tracks the hypothetical the participant is answering, not real availability.
+    function updateStatusRow() {
+        const unpairedSet = new Set(selectedPrizes.filter(function(p) { return isPrizeChoice(p); }));
+        document.querySelectorAll('.prize-status-cell').forEach(function(cell) {
+            const prizeLetter = cell.getAttribute('data-prize');
+            if (unpairedSet.has(prizeLetter)) {
+                cell.textContent = 'Unpaired';
+                cell.classList.add('taken-cell');
+            } else {
+                cell.textContent = 'Available';
+                cell.classList.remove('taken-cell');
+            }
+        });
+    }
+
+    function setStatusIfRowVisible(isVisible) {
+        const row = document.getElementById('status-if-row');
+        if (!row) return;
+        row.style.display = isVisible ? '' : 'none';
+    }
+
+    function updateCurrentDropdownOptions() {
+        const row = document.getElementById('row-' + currentStep);
+        if (!row) return;
+        const sel = row.querySelector('select');
+        if (!sel) return;
+
+        // A prize you have been unpaired from can never be applied to again.
+        const unpairedSet = new Set(selectedPrizes.filter(function(p) { return isPrizeChoice(p); }));
+        Array.from(sel.options).forEach(function(opt) {
+            if (opt.value === '' || opt.value === noPrizeToken) {
+                opt.disabled = false;
+                return;
+            }
+            opt.disabled = unpairedSet.has(opt.value);
+        });
+    }
+
+    function showStep(stepIndex) {
+        const row = document.getElementById('row-' + stepIndex);
+        const label = document.getElementById('label-' + stepIndex);
+        if (!row || !label) return;
+
+        setStatusIfRowVisible(true);
+        row.classList.remove('summary-row');
+        label.innerHTML = buildStepPrompt(stepIndex);
+        row.style.display = 'block';
+
+        const sel = row.querySelector('select');
+        if (sel) {
+            sel.disabled = false;
+            if (!selectedPrizes[stepIndex - 1]) {
+                sel.value = '';
+            }
+        }
+
+        const changeBtn = row.querySelector('.summary-change-btn');
+        if (changeBtn) {
+            changeBtn.style.display = 'none';
+            changeBtn.onclick = null;
+        }
+
+        updateCurrentDropdownOptions();
+    }
+
+    function showSummaryRows() {
+        hideAllRows();
+        setStatusIfRowVisible(false);
+        for (let i = 1; i <= completedSteps; i++) {
+            const row = document.getElementById('row-' + i);
+            const label = document.getElementById('label-' + i);
+            if (!row || !label) continue;
+
+            row.classList.add('summary-row');
+            label.innerHTML = buildLabel(i);
+            const sel = row.querySelector('select');
+            if (sel) {
+                sel.value = selectedPrizes[i - 1] || '';
+                sel.disabled = true;
+            }
+
+            const changeBtn = row.querySelector('.summary-change-btn');
+            if (changeBtn) {
+                changeBtn.style.display = 'inline-block';
+                changeBtn.onclick = function(event) {
+                    event.stopPropagation();
+                    startEditingFromStep(i);
+                };
+            }
+            row.style.display = 'flex';
+        }
+
+        const statusArea = document.getElementById('status-area');
+        if (statusArea) {
+            statusArea.className = 'status-done';
+            statusArea.innerHTML = '<strong>Review the plan you are giving your robot. Once you click Confirm, your choices are final.</strong>';
+        }
+
+        const helper = document.getElementById('confirm-helper-text');
+        if (helper) {
+            helper.textContent = 'Click Change next to any case to revise from there, or click Confirm to submit.';
+        }
+
+        const button = document.getElementById('button_confirm');
+        if (button) {
+            button.textContent = 'Confirm';
+        }
+
+        isReviewMode = true;
+        updateRanking();
+    }
+
+    function startEditingFromStep(stepIndex) {
+        if (!isReviewMode) return;
+        if (stepIndex < 1 || stepIndex > completedSteps) return;
+
+        for (let i = stepIndex; i <= nrPrizes; i++) {
+            selectedPrizes[i - 1] = '';
+            const row = document.getElementById('row-' + i);
+            if (row) {
+                const sel = row.querySelector('select');
+                if (sel) {
+                    sel.value = '';
+                    sel.disabled = false;
+                }
+            }
+        }
+
+        completedSteps = stepIndex - 1;
+        currentStep = stepIndex;
+        isReviewMode = false;
+        setStepFeedback('');
+        updateStatusRow();
+        updateRanking();
+
+        const statusArea = document.getElementById('status-area');
+        if (statusArea) {
+            statusArea.className = 'status-your-turn';
+            statusArea.innerHTML = '<strong>You are now revising the plan for your robot. Continue from this case and click Next after each choice.</strong>';
+        }
+
+        const helper = document.getElementById('confirm-helper-text');
+        if (helper) {
+            helper.textContent = 'Click Next after each choice.';
+        }
+
+        const button = document.getElementById('button_confirm');
+        if (button) {
+            button.textContent = 'Next';
+        }
+
+        hideAllRows();
+        showStep(currentStep);
+    }
+
+    function updateRanking() {
+        const ranking = selectedPrizes.map(function(p) { return p || '-'; }).join('');
+        document.getElementById('id_pref_ranking').value = ranking;
+    }
+
+    function handleConfirmClick() {
+        setStepFeedback('');
+
+        if (isReviewMode) {
+            updateRanking();
+            const form = document.querySelector('form');
+            if (form) {
+                form.requestSubmit();
+            }
+            return;
+        }
+
+        const currentRow = document.getElementById('row-' + currentStep);
+        if (!currentRow) return;
+
+        const currentSelect = currentRow.querySelector('select');
+        const choice = currentSelect ? (currentSelect.value || '').trim() : '';
+        if (!choice) {
+            setStepFeedback('Please select a prize or choose No Prize before continuing.');
+            return;
+        }
+
+        selectedPrizes[currentStep - 1] = choice;
+        completedSteps = currentStep;
+        updateRanking();
+
+        // No Prize ends the plan: there is nothing left for the robot to do after it.
+        if (!isPrizeChoice(choice)) {
+            showSummaryRows();
+            return;
+        }
+
+        updateStatusRow();
+        currentRow.style.display = 'none';
+        if (currentStep >= nrPrizes) {
+            showSummaryRows();
+            return;
+        }
+
+        currentStep += 1;
+        showStep(currentStep);
+    }
+
+    (function() {
+        hideAllRows();
+        updateStatusRow();
+        setStatusIfRowVisible(true);
+        showStep(currentStep);
+        updateRanking();
+
+        const helper = document.getElementById('confirm-helper-text');
+        if (helper) {
+            helper.textContent = 'Click Next after each choice.';
+        }
+
+        const confirmButton = document.getElementById('button_confirm');
+        if (confirmButton) {
+            confirmButton.addEventListener('click', handleConfirmClick);
+        }
+    })();
+</script>
+{{ endblock }}

@@ -1,0 +1,82 @@
+{{ block title }}
+    Demographics Survey
+{{ endblock }}
+
+{{ block content }}
+    <style>
+        .survey-card { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 6px; padding: 20px; margin-bottom: 25px; }
+        .survey-card h5 { font-size: 16px; font-weight: bold; margin-bottom: 15px; }
+        .survey-card .form-check { margin-bottom: 8px; }
+        /* Hides oTree's default labels when we use custom layouts */
+        .checkbox-group label { font-weight: normal; }
+        /* Honeypot field is present in HTML but visually removed for humans. */
+        .honeypot-wrap {
+            position: absolute;
+            left: -10000px;
+            top: auto;
+            width: 1px;
+            height: 1px;
+            overflow: hidden;
+        }
+    </style>
+
+    <div class="card bg-light mb-4">
+        <div class="card-body">
+            <p class="mb-0">Please answer the following demographic questions to complete the study.</p>
+        </div>
+    </div>
+
+    <div class="survey-card">
+        {{ formfield 'age' }}
+    </div>
+
+    <div class="survey-card checkbox-group">
+        <h5>Which of the following racial or ethnic groups do you identify with? (Mark all that apply)</h5>
+        {{ formfield 'race_native' }} {{ formfield 'race_asian' }} {{ formfield 'race_black' }} 
+        {{ formfield 'race_hispanic' }} {{ formfield 'race_mena' }} {{ formfield 'race_hawaiian' }} 
+        {{ formfield 'race_white' }} {{ formfield 'race_other' }} {{ formfield 'race_prefer_not' }}
+    </div>
+
+    <div class="survey-card checkbox-group">
+        <h5>Which best describes your gender identity? (Mark all that apply)</h5>
+        {{ formfield 'gender_man' }} {{ formfield 'gender_woman' }} 
+        {{ formfield 'gender_trans_nonbinary' }} {{ formfield 'gender_prefer_not' }}
+    </div>
+
+    <div class="survey-card checkbox-group">
+        <h5>Which of the following best represents how you think of yourself? (Mark all that apply)</h5>
+        {{ formfield 'sex_gay_lesbian' }} {{ formfield 'sex_straight' }} {{ formfield 'sex_bisexual' }} 
+        {{ formfield 'sex_different' }} {{ formfield 'sex_dont_know' }} {{ formfield 'sex_prefer_not' }}
+    </div>
+
+    <div class="survey-card">
+        {{ formfield 'lgbtq' }}
+        {{ formfield 'education' }}
+        {{ formfield 'state' }}
+        {{ formfield 'community' }}
+        {{ formfield 'employment' }}
+        {{ formfield 'income' }}
+        {{ formfield 'politics' }}
+        {{ formfield 'party' }}
+    </div>
+    <div class="survey-card">
+        {{ formfield 'intergenerational_advice' }}
+        {{ formfield 'comments' }}
+    </div>
+
+    <div class="honeypot-wrap" aria-hidden="true">
+        <label for="id_website">Website (leave blank)</label>
+        <input
+            type="text"
+            id="id_website"
+            name="website"
+            value=""
+            tabindex="-1"
+            autocomplete="off"
+        >
+    </div>
+
+    <div style="margin-top: 40px; text-align: right;">
+        <button class="btn btn-primary btn-lg">Submit & Finish Study</button>
+    </div>
+{{ endblock }}

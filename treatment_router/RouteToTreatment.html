@@ -1,0 +1,27 @@
+{{ block title }}
+    Setting Up Your Session...
+{{ endblock }}
+
+{{ block content }}
+    <div style="text-align: center; margin-top: 50px;">
+        <p>Please wait...</p>
+        
+        <div class="spinner-border text-primary" role="status" style="margin-top: 20px;">
+            <span class="visually-hidden">Loading...</span>
+        </div>
+    </div>
+
+    <div style="display: none;">
+        {{ next_button }}
+    </div>
+{{ endblock }}
+
+{{ block scripts }}
+    <script>
+        // Instantly auto-submit the page as soon as it loads.
+        // This triggers your app_after_this_page logic in __init__.py!
+        window.onload = function() {
+            document.getElementById('form').submit();
+        };
+    </script>
+{{ endblock }}
