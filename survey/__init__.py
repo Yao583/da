@@ -99,7 +99,7 @@ class C(BaseConstants):
     NUM_ROUNDS = 1
     PROLIFIC_COMPLETION_URL = 'https://app.prolific.com/submissions/complete?cc=C3DGP1B9'
     # Optional redirect for flagged bots (e.g., Prolific screened-out URL/code).
-    PROLIFIC_BOT_REDIRECT_URL = ''
+    PROLIFIC_BOT_REDIRECT_URL = 'https://app.prolific.com/submissions/complete?cc=C1HW4JRM'
 
 class Subsession(BaseSubsession):
     pass
