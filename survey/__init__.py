@@ -1,6 +1,7 @@
 from otree.api import *
 
 import allocation
+import ai_detect
 
 doc = """
 Final survey + study completion. Reaching ThankYou marks a participant as a completer. A
@@ -172,6 +173,36 @@ class Player(BasePlayer):
     website = models.StringField(blank=True, initial='')
     suspected_bot = models.BooleanField(initial=False)
 
+    # --- AI-usage instrumentation. Opaque JSON written by _static/global/ai_detect.js.
+    # Field-name rule (shared with the JS): 'ai_tel_' + PageClass.__name__.lower()
+    ai_tel_demographics = models.LongStringField(blank=True, initial='')
+
+    # Mirror of participant.vars, filled by ai_detect.mirror_to_player(). These are
+    # SOFT research flags for post-hoc exclusion -- they never feed suspected_bot.
+    # participant.vars only reaches the "All apps" wide CSV, so mirroring here also
+    # puts the numbers in the survey app's own CSV and the admin Data tab.
+    ai_score = models.IntegerField(initial=0)
+    ai_flags = models.StringField(initial='', blank=True)
+    ai_blur_count = models.IntegerField(initial=0)
+    ai_hidden_seconds = models.IntegerField(initial=0)
+    ai_hidden_max_seconds = models.IntegerField(initial=0)
+    ai_copy_count = models.IntegerField(initial=0)
+    ai_copy_chars = models.IntegerField(initial=0)
+    ai_paste_count = models.IntegerField(initial=0)
+    ai_paste_chars = models.IntegerField(initial=0)
+    ai_max_jump_chars = models.IntegerField(initial=0)
+    ai_max_selection_chars = models.IntegerField(initial=0)
+    ai_pointer_events = models.IntegerField(initial=0)
+    ai_advice_words = models.IntegerField(initial=0)
+    ai_advice_chars = models.IntegerField(initial=0)
+    ai_advice_keys = models.IntegerField(initial=0)
+    ai_advice_key_ratio = models.FloatField(initial=0)
+    ai_advice_ttfk_ms = models.IntegerField(initial=0)
+    ai_advice_compose_ms = models.IntegerField(initial=0)
+    ai_advice_ime_keys = models.IntegerField(initial=0)
+    ai_webdriver = models.BooleanField(initial=False)
+    ai_pages_instrumented = models.IntegerField(initial=0)
+
     # --- MARK ALL THAT APPLY: RACE (QID15) ---
     race_native = models.BooleanField(label="American Indian or Alaska Native", widget=widgets.CheckboxInput, blank=True)
     race_asian = models.BooleanField(label="Asian or Asian American", widget=widgets.CheckboxInput, blank=True)
@@ -194,15 +225,22 @@ class Player(BasePlayer):
     sex_straight = models.BooleanField(label="Straight, that is not gay or lesbian etc.", widget=widgets.CheckboxInput, blank=True)
     sex_bisexual = models.BooleanField(label="Bisexual", widget=widgets.CheckboxInput, blank=True)
     sex_different = models.BooleanField(label="I use a different term", widget=widgets.CheckboxInput, blank=True)
-    sex_dont_know = models.BooleanField(label="I don’t know", widget=widgets.CheckboxInput, blank=True)
+    sex_dont_know = models.BooleanField(label="I don't know", widget=widgets.CheckboxInput, blank=True)
     sex_prefer_not = models.BooleanField(label="Prefer not to answer", widget=widgets.CheckboxInput, blank=True)
 
+    # The 50-word floor is enforced server-side in Demographics.error_message via
+    # ai_detect.advice_error(); the live counter in ai_detect.js is only a hint.
     intergenerational_advice = models.LongStringField(
-        label="Intergenerational advice: If someone plays this game in the future, what would you recommend them to do in order to maximize their earnings.",
+        label=(
+            "If someone plays this game in the future, what would you recommend "
+            "them to do in order to maximize their earnings. Also, describe your "
+            "experience today. How did you feel about the experiment? "
+            "Answer in more than 50 words."
+        ),
         blank=False,
     )
     comments = models.LongStringField(
-        label="If you have any comments or feedback about this study, please leave them below.",
+        label="If you have any comments or feedback about this study, or any issues that you encountered during the process, please leave them below.",
         blank=True
     )
 
@@ -219,7 +257,19 @@ class Demographics(Page):
         'sex_gay_lesbian', 'sex_straight', 'sex_bisexual', 'sex_different', 'sex_dont_know', 'sex_prefer_not',
         'lgbtq', 'education', 'state', 'community', 'employment', 'income', 'politics', 'party', 'intergenerational_advice', 'comments',
         'website',
+        'ai_tel_demographics',
     ]
+
+    @staticmethod
+    def js_vars(player: Player):
+        # Single source of truth for the live word counter in ai_detect.js.
+        return dict(min_advice_words=ai_detect.MIN_ADVICE_WORDS)
+
+    @staticmethod
+    def error_message(player: Player, values):
+        # Server-side authority for the 50-word rule. The client counter is a hint
+        # only and never blocks, so a client/server split cannot trap anyone.
+        return ai_detect.advice_error(values.get('intergenerational_advice'))
 
     @staticmethod
     def is_displayed(player: Player):
@@ -243,6 +293,11 @@ class Demographics(Page):
             player.participant.vars['suspected_bot_reason'] = 'demographics_honeypot_filled'
             player.participant.vars['suspected_bot_value'] = honeypot_value[:120]
 
+        # AI-usage telemetry. Deliberately SEPARATE from the honeypot hard block
+        # above: these are soft research flags for post-hoc exclusion only, and
+        # must never set suspected_bot. See ai_detect.py.
+        ai_detect.record(player, 'survey/Demographics', player.ai_tel_demographics)
+
 
 class BotBlocked(Page):
     @staticmethod
@@ -251,6 +306,7 @@ class BotBlocked(Page):
 
     @staticmethod
     def vars_for_template(player: Player):
+        ai_detect.mirror_to_player(player)
         redirect_url = player.session.config.get(
             'prolific_bot_redirect_url',
             C.PROLIFIC_BOT_REDIRECT_URL,
@@ -267,6 +323,9 @@ class ThankYou(Page):
     @staticmethod
     def vars_for_template(player: Player):
         participant = player.participant
+        # Mirror the AI-usage summary here too: quiz-fails and screened-out
+        # participants skip Demographics but still reach this page.
+        ai_detect.mirror_to_player(player)
         # Reaching this page counts as study completion for router rebalancing.
         participant.vars['study_completed'] = True
 

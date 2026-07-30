@@ -66,6 +66,18 @@ PARTICIPANT_FIELDS = [
     'e2_valuations',
     'e2_player_prefs',
     'total_payment',
+    # --- AI-usage instrumentation (soft research flags, see ai_detect.py).
+    # Written by ai_detect.record(); never feeds the suspected_bot hard block.
+    'ai_score', 'ai_flags',
+    'ai_blur', 'ai_hid', 'ai_hid_ms', 'ai_hid_max',
+    'ai_copy', 'ai_cut', 'ai_copy_ch', 'ai_copy_sample',
+    'ai_paste', 'ai_paste_ch', 'ai_jump_max', 'ai_jumps', 'ai_sel_max',
+    'ai_keys', 'ai_ime', 'ai_mouse', 'ai_scroll', 'ai_touch', 'ai_click',
+    'ai_loads', 'ai_ctx',
+    'ai_advice_len', 'ai_advice_keys', 'ai_advice_ratio', 'ai_advice_pastes',
+    'ai_advice_ttfk', 'ai_advice_ms', 'ai_advice_jump_max', 'ai_advice_ime',
+    'ai_webdriver', 'ai_env',
+    'ai_no_pointer_pages', 'ai_bad_blobs', 'ai_pages_instrumented', 'ai_pages',
 ]
 SESSION_FIELDS = []
 

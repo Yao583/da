@@ -3,6 +3,7 @@ import json
 import random
 
 import allocation
+import ai_detect
 import csv
 import os
 
@@ -55,6 +56,12 @@ class Player(BasePlayer):
     available_prizes_at_turn = models.LongStringField(initial='[]')
 
     failed_quiz = models.BooleanField(initial=False, blank=True)
+
+    # --- AI-usage instrumentation. Opaque JSON written by _static/global/ai_detect.js.
+    # Field-name rule (shared with the JS): 'ai_tel_' + PageClass.__name__.lower()
+    # If you rename a page class you MUST rename its field, or the blob is dropped.
+    ai_tel_instructionsquiz = models.LongStringField(blank=True, initial='')
+    ai_tel_decision = models.LongStringField(blank=True, initial='')
 
 # --- Quiz 1: prizes, groups and values ---
     quiz1 = models.StringField(
@@ -289,7 +296,7 @@ class InstructionsQuiz(Page):
         'quiz10', 'quiz11', 'quiz12', 'quiz13', 'quiz14', 'quiz15', 'quiz16', 'quiz17',
         'quiz18', 'quiz19', 'quiz20', 'quiz21', 'quiz22', 'quiz23', 'quiz24', 'quiz25',
         'quiz26', 'quiz27', 'quiz28', 'quiz29', 'quiz30', 'quiz1_attempts', 'quiz2_attempts',
-        'quiz3_attempts', 'quiz4_attempts', 'quiz5_attempts', 'failed_quiz']
+        'quiz3_attempts', 'quiz4_attempts', 'quiz5_attempts', 'failed_quiz', 'ai_tel_instructionsquiz']
 
     @staticmethod
     def is_displayed(player):
@@ -322,6 +329,9 @@ class InstructionsQuiz(Page):
         if player.failed_quiz:
             player.participant.vars['failed_quiz'] = True
             player.participant.vars['bonus_payout'] = 0
+        # AI-usage telemetry (soft research flags only; see ai_detect.py).
+        ai_detect.record(player, f'{C.NAME_IN_URL}/InstructionsQuiz',
+                         player.ai_tel_instructionsquiz)
 
     @staticmethod
     def app_after_this_page(player: Player, upcoming_apps):
@@ -332,7 +342,7 @@ class InstructionsQuiz(Page):
 
 class Decision(Page):
     form_model = 'player'
-    form_fields = ['pref_ranking']
+    form_fields = ['pref_ranking', 'ai_tel_decision']
 
     @staticmethod
     def vars_for_template(player: Player):
@@ -401,6 +411,8 @@ class Decision(Page):
         store = player.participant.vars.get('market_ranking') or {}
         store[str(player.subsession.round_number)] = clean_ranking
         player.participant.vars['market_ranking'] = store
+        ai_detect.record(player, f'{C.NAME_IN_URL}/Decision/{player.round_number}',
+                         player.ai_tel_decision)
 
     @staticmethod
     def is_displayed(player: Player):

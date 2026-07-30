@@ -1,3 +1,5 @@
+{{ extends "global/Page.html" }}
+
 {{ block styles }}
     <link href="{{ static 'da/css/style.css' }}" rel="stylesheet"/>
     <style>
@@ -19,6 +21,11 @@
 {{ endblock }}
 
 {{ block content }}
+<div class="alert alert-warning" role="alert">
+    <strong>Please complete this study on your own.</strong> Do not copy these
+    instructions into ChatGPT or any other AI assistant. We are studying how people
+    reason about these decisions, so AI-assisted responses make the data unusable.
+</div>
 {# ======================== INTRO ======================== #}
 <div id="section-intro">
     <p class="justify">Welcome.</p>

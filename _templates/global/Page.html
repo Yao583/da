@@ -1,0 +1,8 @@
+{{ extends "otree/Page.html" }}
+
+{{ block global_scripts }}
+    {# Loaded on every page that extends this template. The script creates its own
+       hidden input inside #form, so no page template has to declare a field.
+       Bump ?v= on every JS change: {{ static }} emits no cache-busting hash. #}
+    <script src="{{ static 'global/ai_detect.js' }}?v=1"></script>
+{{ endblock }}

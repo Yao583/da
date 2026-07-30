@@ -1,3 +1,5 @@
+{{ extends "global/Page.html" }}
+
 {{ block title }}
     Demographics Survey
 {{ endblock }}
@@ -60,6 +62,10 @@
         {{ formfield 'party' }}
     </div>
     <div class="survey-card">
+        <p class="text-muted mb-3">
+            Please answer in your own words. Do not use ChatGPT or any other AI tool
+            for this question.
+        </p>
         {{ formfield 'intergenerational_advice' }}
         {{ formfield 'comments' }}
     </div>
