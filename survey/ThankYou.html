@@ -6,18 +6,31 @@
     <div style="text-align: center; margin-top: 50px;">
         <h4 style="color: #28a745;">Thank you for participating!</h4>
         <p>Your responses have been securely saved.</p>
-        
-        <div class="card bg-light my-4 mx-auto" style="max-width: 400px;">
+
+        <div class="card bg-light my-4 mx-auto" style="max-width: 440px;">
             <div class="card-body">
                 <h5 class="card-title">Your Earnings</h5>
-                <p class="card-text mb-1">Base Payment: <strong>${{ participation_fee }}</strong></p>
-                <p class="card-text">Bonus from selected round {{winning_round}}: <strong>${{ bonus }}</strong></p>
+                <p class="card-text mb-1">Base Payment: <strong>{{ participation_fee }}</strong></p>
+                {{ if usable }}
+                <p class="card-text mb-1">Bonus (from the randomly selected round): <strong>calculated after the study closes</strong></p>
                 <p style="font-size: 14px; color: #6c757d;">
-                    <em>(Your bonus will be processed via Prolific within 48 hours)</em>
+                    <em>Your prize allocation is determined once your group of participants is
+                    complete. Your bonus will then be paid via Prolific within 48 hours, on top of
+                    the base payment.</em>
                 </p>
+                {{ elif screened_out }}
+                <p class="card-text mb-1"><em>This study is currently full.</em></p>
+                <p style="font-size: 14px; color: #6c757d;">
+                    <em>Thank you for your interest. You will receive the base payment via Prolific.</em>
+                </p>
+                {{ else }}
+                <p style="font-size: 14px; color: #6c757d;">
+                    <em>You will receive the base payment via Prolific.</em>
+                </p>
+                {{ endif }}
             </div>
         </div>
-        
+
         <p style="margin-top: 30px;">
             You will be automatically redirected back to Prolific to claim your base payment in <strong>5 seconds</strong>.
         </p>

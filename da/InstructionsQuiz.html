@@ -24,6 +24,9 @@
     <p class="justify">Welcome.</p>
     <p class="justify">This study will consist of five periods. At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
 
+    <p class="heading">Your Task</p>
+    <p class="justify">Below are the instructions for a game you are going to play. In case it's helpful to understand the instructions better, in the end, your task in the game is to submit a ranking of potential prizes you can win. All you need to do is to figure out which prizes to rank, and the order in which to rank them.</p>
+
     <button type="button" id="continue-intro" class="btn-continue" onclick="showNext('section-basics', 'continue-intro')">Continue</button>
 </div>
 
@@ -339,12 +342,14 @@
     <p class="justify">Each conflict is identified and solved in two steps:</p>
     <div class="instr-section">
         <p class="justify"><strong>Unpair:</strong></p>
+        <p class="justify">Whenever there are more participants matched than there are prizes (so more than two participants matched to prize A or B, or more than one participant for C, D, E, or F), participants with the lowest priority will be unmatched until there is no longer any excess.</p>
+        <p class="justify">Going prize by prize, specifically:</p>
         <ul>
             <li>If more than two participants are paired with a prize A, this creates a conflict. Only the two participants with the highest priorities remain paired to one of the two prize A. The others get unpaired.</li>
             <li>If more than two participants are paired with a prize B, this creates a conflict. Only the two participants with the highest priorities remain paired to one of the two prize B. The others get unpaired.</li>
             <li>If more than one participant is paired with prize C, this creates a conflict. Only the participant with the highest priority remains paired to that prize. The others get unpaired. A similar unpairing process takes place if more than one participant is paired with prize D or with prize E or with prize F.</li>
         </ul>
-        <p class="justify"><strong>Re-pair:</strong> all unpaired participants can only get re-paired to prizes that they were not paired with before. That is, for a participant who was unpaired from a prize, this prize is unavailable. For unpaired participants it pairs the participant with their highest-ranked prize among the prizes they were not yet paired with.</p>
+        <p class="justify"><strong>Re-pair:</strong> all unpaired participants can only get re-paired to prizes that they were not paired with before. That is, for a participant who was unpaired from a prize, this prize is unavailable. This means that if a participant is unpaired from one of the two Prize A (or Prize B), they cannot be re-paired to any of the Prize As (or Prize Bs).</p>
     </div>
     <p class="justify">Later steps continue in the same way, by detecting and solving new conflicts. Like before, if two (or more) participants are paired to the same prize, this is a conflict. The conflict is solved using the same Unpair and Re-pair steps from above.</p>
     <p class="justify"><strong>A participant can get unpaired from a prize even if they successfully got paired to that prize in a previous step.</strong></p>
@@ -400,7 +405,7 @@
     <div class="mb-3">
         <label class="col-form-label"><strong>Question 27:</strong> If at some point in the process you are unpaired from a prize, can you be paired to that prize later on in the process?</label>
         <div style="margin-left:20px;">
-            <label style="display:block;"><input type="radio" name="quiz27" value="No"> No, once you are unpaired from a prize such prize becomes unavailable to you. But no other prize is out of reach. You may be paired to another prize that was previously paired to somebody else. This will create a conflict. If your priority is higher, you will be the new participant matched to that prize.</label>
+            <label style="display:block;"><input type="radio" name="quiz27" value="No"> No, once you are unpaired from a prize, that prize becomes unavailable to you. This means that if you were unpaired from a Prize A, you cannot be re-paired to any of the two Prize As. But no other prize that you haven't been unpaired from yet is out of reach. You may be paired to another prize that was previously paired to somebody else.</label>
             <label style="display:block;"><input type="radio" name="quiz27" value="Yes"> Yes</label>
         </div>
     </div>

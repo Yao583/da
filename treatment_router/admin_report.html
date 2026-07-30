@@ -1,0 +1,32 @@
+{{ block content }}
+<h4>Recruitment counter (target = {{ markets_per_treatment }} market(s) per treatment)</h4>
+<p>
+    Usable finishers so far: <strong>{{ usable_total }}</strong>
+    &rarr; complete groups of 8: <strong>{{ full_groups }}</strong>.
+    Keep Prolific places open until every "remaining" below reaches 0.
+</p>
+<table class="table table-sm table-bordered" style="max-width: 720px;">
+    <thead>
+        <tr>
+            <th>Treatment</th>
+            <th>Bucket</th>
+            <th>Completed</th>
+            <th>Active (in flight)</th>
+            <th>Target</th>
+            <th>Remaining</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for row in rows }}
+        <tr>
+            <td>{{ row.treatment }}</td>
+            <td>{{ row.bucket }}</td>
+            <td>{{ row.completed }}</td>
+            <td>{{ row.active }}</td>
+            <td>{{ row.target }}</td>
+            <td>{{ row.remaining }}</td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>
+{{ endblock }}

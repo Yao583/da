@@ -4,7 +4,11 @@ SESSION_CONFIGS = [
     dict(
         name='prolific_experiment',
         display_name="Prolific: Router to 4 Treatments",
-        num_demo_participants=5,
+        num_demo_participants=32,
+        # Groups of 8 formed per treatment. Bucket targets are 3M/M/3M/M (A_normal/A_lowest/
+        # B_normal/B_lowest), so each treatment needs 8*M usable finishers. Watch the router's
+        # admin report and keep Prolific places open until every bucket's "remaining" hits 0.
+        markets_per_treatment=1,
         prolific_bot_redirect_url='https://app.prolific.com/submissions/complete?cc=C1HW4JRM',
         app_sequence=[
             'treatment_router',
@@ -38,6 +42,17 @@ PARTICIPANT_FIELDS = [
     # creating_session for every app, so the export contains da/boston/agent_da/
     # agent_boston rows for participants who never played them -- filter on this column.
     'treatment',
+    # Group-of-8 assignment (set by the router; used for post-hoc allocation in survey).
+    'role',            # 'A' (values A>B) or 'B' (values B>A); fixed for the whole study
+    'is_lowest',       # designated lowest-priority member of their group (A or B)
+    'bucket',          # 'A_normal' | 'A_lowest' | 'B_normal' | 'B_lowest'
+    'screened_out',    # arrived after all buckets were full (study full); show-up fee only
+    'market_id',       # id of the assembled group of 8, e.g. 'da-3' (also the RNG seed)
+    'market_pid',      # this member's 1..8 slot in the market (with market_id -> reconstructable)
+    'market_vals',     # {round: [6 valuations]} the participant actually saw
+    'market_ranking',  # {round: ranking string} the participant submitted
+    'market_detail',   # {round: {prize, payoff}} from the post-hoc allocation
+    'market_queued',   # internal: queued for grouping (assembled at most once)
     'bonus_payout',
     'failed_quiz',
     'suspected_bot',
