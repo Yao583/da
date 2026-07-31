@@ -3,19 +3,25 @@ from os import environ
 SESSION_CONFIGS = [
     dict(
         name='prolific_experiment',
-        display_name="Prolific: Router to 4 Treatments",
-        num_demo_participants=32,
+        # --- PILOT CONFIGURATION: da only, 48 usable finishers ---------------
+        # To restore the full four-treatment study, revert these three keys to
+        # num_demo_participants=32, markets_per_treatment=1, and the six-app
+        # app_sequence below -- AND restore allocation.TREATMENTS to all four.
+        # The two files must be changed together: the router raises if it draws
+        # a treatment that is not in app_sequence.
+        display_name="Prolific PILOT: da only",
+        num_demo_participants=48,
         # Groups of 8 formed per treatment. Bucket targets are 3M/M/3M/M (A_normal/A_lowest/
         # B_normal/B_lowest), so each treatment needs 8*M usable finishers. Watch the router's
         # admin report and keep Prolific places open until every bucket's "remaining" hits 0.
-        markets_per_treatment=1,
+        # Pilot: 8 * 6 * 1 treatment = 48 usable, i.e. targets of 18/6/18/6.
+        markets_per_treatment=6,
         prolific_bot_redirect_url='https://app.prolific.com/submissions/complete?cc=C1HW4JRM',
         app_sequence=[
             'treatment_router',
             'da',
-            'boston',
-            'agent_da',
-            'agent_boston',
+            # Pilot: boston, agent_da and agent_boston are out of the sequence.
+            # Restore them here together with allocation.TREATMENTS.
             'survey',
         ],
     ),
@@ -76,8 +82,24 @@ PARTICIPANT_FIELDS = [
     'ai_loads', 'ai_ctx',
     'ai_advice_len', 'ai_advice_keys', 'ai_advice_ratio', 'ai_advice_pastes',
     'ai_advice_ttfk', 'ai_advice_ms', 'ai_advice_jump_max', 'ai_advice_ime',
+    # --- schema 2: revisions, study-wide across every text field ---
+    'ai_bksp', 'ai_del', 'ai_mid', 'ai_mid_ep',
+    # --- schema 2: typing rhythm, study-wide ---
+    'ai_pause', 'ai_iki_n', 'ai_iki_sum', 'ai_iki_sq', 'ai_iki_min', 'ai_iki_max',
+    'ai_iki_hist',
+    # --- schema 2: revisions and rhythm on the free-text answer ---
+    'ai_advice_bksp', 'ai_advice_del', 'ai_advice_bksp_rate', 'ai_advice_prod_ratio',
+    'ai_advice_mid', 'ai_advice_mid_ep',
+    'ai_advice_iki_n', 'ai_advice_iki_mean', 'ai_advice_iki_sd', 'ai_advice_iki_cv',
+    'ai_advice_iki_min', 'ai_advice_iki_max', 'ai_advice_pauses',
+    'ai_advice_iki_p10', 'ai_advice_iki_p50', 'ai_advice_iki_p90',
+    'ai_advice_iki_exact', 'ai_advice_iki_hist',
+    # The raw base36 gap sequence. Also present inside ai_tel_demographics; kept
+    # here too so the wide CSV is self-contained for the timing analysis.
+    'ai_advice_iki_raw', 'ai_advice_iki_trunc',
     'ai_webdriver', 'ai_env',
     'ai_no_pointer_pages', 'ai_bad_blobs', 'ai_pages_instrumented', 'ai_pages',
+    'ai_schema',
 ]
 SESSION_FIELDS = []
 

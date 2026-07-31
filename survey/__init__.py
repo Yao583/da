@@ -200,8 +200,33 @@ class Player(BasePlayer):
     ai_advice_ttfk_ms = models.IntegerField(initial=0)
     ai_advice_compose_ms = models.IntegerField(initial=0)
     ai_advice_ime_keys = models.IntegerField(initial=0)
+    # Schema 2: revisions and typing rhythm on the free-text answer. The IKI
+    # histogram and the raw sequence are NOT mirrored here -- a list and a
+    # multi-KB string have no place in a spreadsheet column. They live in
+    # participant.vars (wide CSV) and in ai_tel_demographics respectively.
+    ai_advice_backspaces = models.IntegerField(initial=0)
+    ai_advice_deletes = models.IntegerField(initial=0)
+    ai_advice_bksp_rate = models.FloatField(initial=0)
+    ai_advice_prod_ratio = models.FloatField(initial=0)
+    ai_advice_midtext_keys = models.IntegerField(initial=0)
+    ai_advice_midtext_episodes = models.IntegerField(initial=0)
+    ai_advice_iki_n = models.IntegerField(initial=0)
+    ai_advice_iki_mean_ms = models.FloatField(initial=0)
+    ai_advice_iki_sd_ms = models.FloatField(initial=0)
+    ai_advice_iki_cv = models.FloatField(initial=0)
+    ai_advice_iki_p10_ms = models.IntegerField(initial=0)
+    ai_advice_iki_p50_ms = models.IntegerField(initial=0)
+    ai_advice_iki_p90_ms = models.IntegerField(initial=0)
+    ai_advice_iki_exact = models.BooleanField(initial=False)
+    ai_advice_pauses = models.IntegerField(initial=0)
+    # Study-wide totals across every instrumented text field, not just the advice box.
+    ai_typing_backspaces = models.IntegerField(initial=0)
+    ai_typing_deletes = models.IntegerField(initial=0)
+    ai_typing_midtext_episodes = models.IntegerField(initial=0)
     ai_webdriver = models.BooleanField(initial=False)
     ai_pages_instrumented = models.IntegerField(initial=0)
+    # Highest telemetry schema seen. Filter on this before pooling waves.
+    ai_schema = models.IntegerField(initial=0)
 
     # --- MARK ALL THAT APPLY: RACE (QID15) ---
     race_native = models.BooleanField(label="American Indian or Alaska Native", widget=widgets.CheckboxInput, blank=True)

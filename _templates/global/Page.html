@@ -1,8 +1,14 @@
 {{ extends "otree/Page.html" }}
 
 {{ block global_scripts }}
-    {# Loaded on every page that extends this template. The script creates its own
-       hidden input inside #form, so no page template has to declare a field.
+    {# Loaded on every page that extends this template. ai_detect.js creates its
+       own hidden input inside #form, so no page template has to declare a field.
        Bump ?v= on every JS change: {{ static }} emits no cache-busting hash. #}
-    <script src="{{ static 'global/ai_detect.js' }}?v=1"></script>
+
+    {# Must come FIRST: it sets window.__aiCopyGuard, which ai_detect.js reads
+       when it builds its env fingerprint. The guard arms itself only on the
+       pages listed in its own GUARDED_PAGES array, so loading it here does not
+       affect Consent / Demographics / ThankYou. #}
+    <script src="{{ static 'global/copy_guard.js' }}?v=1"></script>
+    <script src="{{ static 'global/ai_detect.js' }}?v=3"></script>
 {{ endblock }}

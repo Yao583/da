@@ -42,21 +42,13 @@ class Group(BaseGroup):
 
 # region Player
 class Player(BasePlayer):
-    assigned_prize = models.IntegerField(initial=0)
     pref_ranking = models.CharField(label="", max_length=C.NR_PRIZES, blank=True)
-    replaced_id = models.IntegerField(initial=0)
-    # Track the exact lab context for this round
-    lab_round_num = models.IntegerField(initial=0)
-    lab_group_num = models.IntegerField(initial=0)
 
-    # Export snapshot fields for downstream analysis
-    app_name = models.StringField(initial='')
+    # Export snapshot fields for downstream analysis. selected_bonus_round is the
+    # ONLY export path for session.vars['paying_round']: SESSION_FIELDS is empty,
+    # so session vars never reach a CSV. Do not remove it.
     selected_bonus_round = models.IntegerField(initial=0)
     valuations = models.LongStringField(initial='[]')
-    selected_group_valuations = models.LongStringField(initial='{}')
-    selected_group_pref_ranking = models.LongStringField(initial='{}')
-    replaced_priority = models.IntegerField(initial=0)
-    available_prizes_at_turn = models.LongStringField(initial='[]')
 
     failed_quiz = models.BooleanField(initial=False, blank=True)
 
@@ -372,7 +364,6 @@ class Decision(Page):
         is_lowest = bool(player.participant.vars.get('is_lowest', False))
 
         # Export snapshot for this round.
-        player.app_name = C.NAME_IN_URL
         player.selected_bonus_round = int(player.session.vars.get('paying_round', 0) or 0)
         player.valuations = json.dumps(valuations)
 
