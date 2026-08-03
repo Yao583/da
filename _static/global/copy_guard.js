@@ -66,22 +66,29 @@
     // ---- toast --------------------------------------------------------------
     // Without visible feedback a participant concludes their browser is broken
     // and emails the researcher. Fixed position so nothing on the page reflows.
-    var toastEl = null;
+    //
+    // #guard-toast is SHARED with paste_guard.js. On Decision and
+    // InstructionsQuiz both guards are armed, and two separately-id'd toasts
+    // would stack on top of each other when a participant tries Ctrl+C then
+    // Ctrl+V. Whichever file fires first creates the element; the other reuses
+    // it. Both inject the same CSS, so neither depends on the other's load
+    // order. Look the element up each time rather than caching it.
     var toastTimer = 0;
 
     function toast() {
         try {
-            if (!toastEl) {
-                toastEl = document.createElement('div');
-                toastEl.id = 'copy-guard-toast';
-                toastEl.setAttribute('role', 'status');
-                toastEl.setAttribute('aria-live', 'polite');
-                document.body.appendChild(toastEl);
+            var el = document.getElementById('guard-toast');
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'guard-toast';
+                el.setAttribute('role', 'status');
+                el.setAttribute('aria-live', 'polite');
+                document.body.appendChild(el);
             }
-            toastEl.textContent = NOTICE + ' Please answer using your own judgment.';
-            toastEl.className = 'cg-show';
+            el.textContent = NOTICE + ' Please answer using your own judgment.';
+            el.className = 'cg-show';
             if (toastTimer) { clearTimeout(toastTimer); }
-            toastTimer = setTimeout(function () { toastEl.className = ''; }, TOAST_MS);
+            toastTimer = setTimeout(function () { el.className = ''; }, TOAST_MS);
         } catch (e) { /* the block itself still worked */ }
     }
 
@@ -94,7 +101,7 @@
         css.textContent =
             'body { -webkit-touch-callout: none; }' +
             FIELD_SEL + ' { -webkit-touch-callout: default; }' +
-            '#copy-guard-toast {' +
+            '#guard-toast {' +
                 'position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%);' +
                 'z-index: 2147483647; max-width: 90vw; padding: 10px 16px;' +
                 'background: rgba(33,37,41,.94); color: #fff; border-radius: 6px;' +
@@ -103,7 +110,7 @@
                 'opacity: 0; visibility: hidden; transition: opacity .15s ease;' +
                 'pointer-events: none;' +
             '}' +
-            '#copy-guard-toast.cg-show { opacity: 1; visibility: visible; }';
+            '#guard-toast.cg-show { opacity: 1; visibility: visible; }';
         document.head.appendChild(css);
     } catch (e) { /* cosmetic only */ }
 

@@ -16,14 +16,14 @@ SESSION_CONFIGS = [
         # therefore needs ~70, and the rest absorbs screen-out arrivals.
         # NOTE: for a room session this only prefills the create-session form; the
         # number you type there is what counts.
-        num_demo_participants=100,
+        num_demo_participants=11000,
         # Groups of 8 formed per treatment. Bucket targets are 3M/M/3M/M (A_normal/A_lowest/
         # B_normal/B_lowest), so each treatment needs 8*M usable finishers. Watch the router's
         # admin report and keep Prolific places open until every bucket's "remaining" hits 0.
         # Here: 8 * 1 market * 4 treatments = 32 usable, i.e. targets of 3/1/3/1 per treatment.
         # At M=1 there is no slack -- A_lowest and B_lowest have a target of ONE, so a single
         # missing finisher leaves that whole arm without an assembled market.
-        markets_per_treatment=1,
+        markets_per_treatment=80,
         prolific_bot_redirect_url='https://app.prolific.com/submissions/complete?cc=C1HW4JRM',
         app_sequence=[
             'treatment_router',
@@ -87,7 +87,9 @@ PARTICIPANT_FIELDS = [
     'ai_score', 'ai_flags',
     'ai_blur', 'ai_hid', 'ai_hid_ms', 'ai_hid_max',
     'ai_copy', 'ai_cut', 'ai_copy_ch', 'ai_copy_sample',
-    'ai_paste', 'ai_paste_ch', 'ai_jump_max', 'ai_jumps', 'ai_sel_max',
+    # ai_paste/_ch count paste ATTEMPTS (paste_guard.js cancels them) and include
+    # text dragged in; ai_drop says how many of those arrivals were drags.
+    'ai_paste', 'ai_paste_ch', 'ai_drop', 'ai_jump_max', 'ai_jumps', 'ai_sel_max',
     'ai_keys', 'ai_ime', 'ai_mouse', 'ai_scroll', 'ai_touch', 'ai_click',
     'ai_loads', 'ai_ctx',
     'ai_advice_len', 'ai_advice_keys', 'ai_advice_ratio', 'ai_advice_pastes',

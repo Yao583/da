@@ -17,10 +17,12 @@
  * These are SOFT research flags. Nothing here blocks, redirects, or repays anyone.
  * The hard-block honeypot path in survey/ is separate and untouched.
  *
- * SIBLING: _static/global/copy_guard.js cancels the clipboard on Decision and
- * InstructionsQuiz. It only calls preventDefault(), so every listener below
- * still fires -- but on those pages copy / cut / copy_ch mean ATTEMPTED, not
- * succeeded. env.guard records which regime a page was under.
+ * SIBLINGS: _static/global/copy_guard.js cancels the clipboard on Decision and
+ * InstructionsQuiz; _static/global/paste_guard.js cancels paste and drop on
+ * every page that loads it. Both only call preventDefault(), so every listener
+ * below still fires -- but under them copy / cut / copy_ch and paste / paste_ch
+ * / drop mean ATTEMPTED, not succeeded. env.guard and env.pguard record which
+ * regime a page was under.
  */
 (function () {
     'use strict';
@@ -75,6 +77,9 @@
             t_first: Date.now(), loads: 0, ms: 0,
             blur: 0, hid: 0, hid_ms: 0, hid_max: 0, hid_t1: -1,
             copy: 0, cut: 0, paste: 0, copy_ch: 0, paste_ch: 0, copy_s: '',
+            // text dragged into a field: same act as a paste, but it never
+            // dispatches a 'paste' event, so it needs its own counter
+            drop: 0,
             sel_max: 0, ctx: 0,
             keys: 0, ime: 0, jumps: 0, jump_max: 0, ttfk: -1,
             k_t0: 0, k_t1: 0, comp_ms: 0,
@@ -124,6 +129,11 @@
             // count BLOCKED ATTEMPTS, not successful copies. Set by
             // _static/global/copy_guard.js, which Page.html loads first.
             guard: window.__aiCopyGuard ? 1 : 0,
+            // Same idea for the return leg: 1 = paste_guard.js armed, so
+            // paste / paste_ch / drop count BLOCKED ATTEMPTS. Absent or 0 on
+            // pilot rows collected before the paste guard shipped, which is what
+            // makes the two regimes separable at analysis time.
+            pguard: window.__aiPasteGuard ? 1 : 0,
             wd:   nav.webdriver ? 1 : 0,
             hl:   /headless|phantom|electron|puppeteer|playwright|selenium/i
                       .test(nav.userAgent || '') ? 1 : 0,
@@ -262,6 +272,33 @@
         bump('paste_ch', txt.length);
         lastPasteAt = Date.now();
         if (isTextField(e.target)) { rec(e.target).paste += 1; }
+        dirty();
+    }, true);
+
+    // Text dragged into a field. Blocked by paste_guard.js, but counted here for
+    // the same reason the copy counters live in this file rather than in the
+    // guard: the guards do the cancelling, this file does the measuring.
+    // Without this the act would show up only as a `jumps` insertion, and once
+    // paste_guard cancels the drop it would not show up at all.
+    //
+    // A drop is a paste that arrived by a different route, so it feeds the SAME
+    // counters -- paste, paste_ch, and the per-field paste tally. `drop` is only
+    // a route marker saying how many of those arrivals were drags. That keeps
+    // pasted_in and its 100-char threshold covering both routes with no change
+    // to the flag logic, and leaves pilot rows (no 'drop' key, reads as 0)
+    // scoring exactly as they did before.
+    document.addEventListener('drop', function (e) {
+        if (!isTextField(e.target)) { return; }
+        var txt = '';
+        try {
+            var dt = e.dataTransfer;
+            txt = (dt && dt.getData('text')) || '';
+        } catch (err) { txt = ''; }
+        bump('drop', 1);
+        bump('paste', 1);
+        bump('paste_ch', txt.length);
+        lastPasteAt = Date.now();
+        rec(e.target).paste += 1;
         dirty();
     }, true);
 

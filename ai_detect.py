@@ -11,8 +11,13 @@ blocks a participant, changes their page flow, or changes their payment. The
 existing hard-block path (survey honeypot -> participant.vars['suspected_bot']
 -> BotBlocked -> Prolific bot-redirect) is deliberately separate and is NOT
 wired to any signal in this module. Do not connect them: a participant who
-alt-tabs to check their email, or who drafts their answer in Notes and pastes
-it, would otherwise be ejected for nothing.
+alt-tabs to check their email, or who drafts their answer in Notes and then
+tries to paste it, would otherwise be ejected for nothing.
+
+Paste is now cancelled client-side (see _static/global/paste_guard.js), so the
+paste counters below record ATTEMPTS. That makes them sharper, not decisive:
+the drafted-in-Notes participant still trips them, they simply have to retype
+afterwards. The rule above is unchanged.
 
 DATA FLOW
 ---------
@@ -57,7 +62,19 @@ T_BLUR = 3                # >=3 window blurs
 # Rows are distinguishable via ai_env['guard'] (1 = guard was armed).
 T_COPY_CHARS = 200        # >=200 chars copied, or attempted, out of the page
 T_SELECT_CHARS = 1500     # a selection this large ~= "select all the instructions"
-T_PASTE_CHARS = 100       # >=100 chars pasted in
+# NOTE on the paste_* thresholds, the mirror image of the note above.
+# _static/global/paste_guard.js cancels paste and drop on EVERY instrumented
+# page, so paste / paste_ch / drop count ATTEMPTED pastes, not successful ones.
+#   - paste_ch inflates the same way copy_ch does: re-trying Ctrl+V on the same
+#     800-char clipboard adds 800 every time. Prefer the paste count.
+#   - the participant is told paste is disabled, in the text above the free-text
+#     answer on survey/Demographics. A paste attempt there is therefore a
+#     deliberate act against a stated rule, which is why the threshold below is
+#     left where it was rather than loosened.
+#   - rows are distinguishable via ai_env['pguard'] (1 = guard was armed). Pilot
+#     rows have no 'pguard' key at all and are NOT poolable with post-guard rows
+#     on the paste flags.
+T_PASTE_CHARS = 100       # >=100 chars pasted in, or attempted
 T_JUMP_CHARS = 40         # one input event inserted >=40 chars
 T_KEY_RATIO = 0.5         # keydowns per final character on the free-text answer
 T_ADVICE_LEN = 100        # only apply the ratio test to answers at least this long
@@ -78,7 +95,7 @@ IKI_EDGES = (50, 100, 200, 400, 800, 1600, 3200)
 IKI_BUCKETS = len(IKI_EDGES) + 1
 
 _SUM_KEYS = ('blur', 'hid', 'hid_ms', 'copy', 'cut', 'copy_ch', 'paste',
-             'paste_ch', 'ctx', 'keys', 'ime', 'jumps',
+             'paste_ch', 'drop', 'ctx', 'keys', 'ime', 'jumps',
              'mouse', 'scroll', 'touch', 'click',
              'bksp', 'del', 'mid', 'mid_ep', 'pause',
              # summing sum and sum-of-squares across pages is what makes the
@@ -230,7 +247,7 @@ def _compact(d):
     if d.get('err'):
         return {'err': d['err']}
     keep = ('ms', 'loads', 'blur', 'hid', 'hid_ms', 'hid_max', 'hid_t1',
-            'copy', 'cut', 'paste', 'copy_ch', 'paste_ch', 'sel_max', 'ctx',
+            'copy', 'cut', 'paste', 'drop', 'copy_ch', 'paste_ch', 'sel_max', 'ctx',
             'keys', 'ime', 'jumps', 'jump_max', 'ttfk', 'comp_ms',
             'mouse', 'scroll', 'touch', 'click',
             'bksp', 'del', 'mid', 'mid_ep', 'pause',
@@ -372,6 +389,9 @@ def _rescore(pv):
         flags.append('copied_out')
     if _num(pv, 'ai_sel_max') >= T_SELECT_CHARS:
         flags.append('large_selection')
+    # Name kept stable too. Post-guard this reads "attempted to paste in" -- see
+    # the T_PASTE_CHARS note. Drag-and-drop feeds ai_paste_ch as well, so this
+    # covers both routes; ai_drop says how many arrivals were drags.
     if _num(pv, 'ai_paste_ch') >= T_PASTE_CHARS:
         flags.append('pasted_in')
     if _num(pv, 'ai_jump_max') >= T_JUMP_CHARS:

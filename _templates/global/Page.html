@@ -5,10 +5,15 @@
        own hidden input inside #form, so no page template has to declare a field.
        Bump ?v= on every JS change: {{ static }} emits no cache-busting hash. #}
 
-    {# Must come FIRST: it sets window.__aiCopyGuard, which ai_detect.js reads
-       when it builds its env fingerprint. The guard arms itself only on the
-       pages listed in its own GUARDED_PAGES array, so loading it here does not
-       affect Consent / Demographics / ThankYou. #}
-    <script src="{{ static 'global/copy_guard.js' }}?v=1"></script>
-    <script src="{{ static 'global/ai_detect.js' }}?v=3"></script>
+    {# Both guards must come BEFORE ai_detect.js: they set window.__aiCopyGuard
+       and window.__aiPasteGuard, which ai_detect.js reads when it builds its env
+       fingerprint, once, at load time.
+
+       copy_guard arms itself only on the pages listed in its own GUARDED_PAGES
+       array, so loading it here does not affect Consent / Demographics /
+       ThankYou. paste_guard has no such list and arms everywhere this template
+       is used -- the pages that extend it ARE the scope. #}
+    <script src="{{ static 'global/copy_guard.js' }}?v=2"></script>
+    <script src="{{ static 'global/paste_guard.js' }}?v=1"></script>
+    <script src="{{ static 'global/ai_detect.js' }}?v=4"></script>
 {{ endblock }}

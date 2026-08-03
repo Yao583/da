@@ -1,7 +1,7 @@
 ---
 title: "AI-Usage Detection: Codebook and Interpretation Guide"
 subtitle: "DA matching experiment (oTree) — IRB-44866"
-date: "July 31, 2026"
+date: "August 3, 2026"
 ---
 
 # 1. What this measures
@@ -27,9 +27,10 @@ analysis-time exclusion flags only.
 `_static/global/copy_guard.js` cancels the clipboard on the two task pages,
 `Decision` and `InstructionsQuiz`, in all four treatment apps. Copy, cut,
 drag-out and the right-click menu are cancelled outside form fields; a brief
-toast tells the participant why. Paste is **not** blocked, printing is **not**
-blocked, and no other page is affected — `Consent`, `Demographics`, `ThankYou`
-and the router behave exactly as before.
+toast tells the participant why. Printing is **not** blocked, and no other page
+is affected — `Consent`, `ThankYou` and the router behave exactly as before.
+Paste was originally left open here too; it is now cancelled separately and on a
+wider set of pages, by the paste guard — see §1.2.
 
 This is friction, not prevention. A screenshot, a phone camera, reader mode or
 retyping all defeat it (see *What it cannot see*). Its value is as much
@@ -40,9 +41,12 @@ deliberate, failed attempt.
 
 - On guarded pages `ai_copy`, `ai_cut` and `ai_copy_ch` count **attempts**, not
   successes. No copy ever completes there.
-- `ai_env['guard']` is `1` on guarded pages, `0` elsewhere. Use it to separate
-  pre-guard pilot rows from post-guard rows — the columns are not comparable
-  across that boundary.
+- `ai_env['guard']` is set per page, but **the exported value is not usable as a
+  wave marker** — `ai_env` is overwritten by each page and the last one is always
+  Demographics, where the copy guard does not arm, so it reads `0` for everyone.
+  See the warning in §3.5. Separate the waves on the *presence* of
+  `ai_env['pguard']` instead, and infer per-page copy-guard state from the page
+  name. The columns are not comparable across that boundary.
 - `ai_copy_ch` inflates under the guard: a participant re-trying `Ctrl+C` on the
   same 800-character selection adds 800 each time. Prefer the `ai_copy` count and
   treat `ai_copy_ch` as an upper bound.
@@ -51,6 +55,56 @@ deliberate, failed attempt.
 - Selection is deliberately left working. Suppressing it with `user-select: none`
   would stop the copy event from firing at all and take `ai_copy`, `ai_copy_ch`,
   `ai_sel_max` and `ai_copy_sample` down with it.
+
+## 1.2 The paste guard (added 3 August 2026)
+
+`_static/global/paste_guard.js` is the return leg of the copy guard. Where the
+copy guard makes it expensive to take the instructions **out** to a chatbot, this
+makes it expensive to bring an answer back **in**.
+
+It cancels `paste`, `drop`, and the `insertFromPaste` / `insertFromDrop` input
+types, which between them cover `Ctrl`/`Cmd`+`V`, right-click → Paste, the
+browser menu bar, the mobile long-press Paste bubble, middle-click paste on
+Linux, and dragging selected text into a field. The same toast tells the
+participant why.
+
+Two differences from the copy guard, both deliberate:
+
+- **It has no page allowlist.** The copy guard names its pages because the
+  Prolific completion code and the consent text must stay copyable; nothing
+  analogous applies to paste. The pages that load the script *are* the scope:
+  `survey/Demographics` plus `Decision` and `InstructionsQuiz` in all four
+  treatment apps.
+- **It targets form fields rather than exempting them.** The copy guard leaves
+  fields alone because copying your own typed text is legitimate. A field is the
+  only place a paste does anything, so there is nothing here to exempt.
+
+Participants are **told**, in the text directly above the free-text answer on
+`survey/Demographics`: *"Pasting is disabled on this page — please type your
+answer directly into the box below."* This matters for interpretation. A paste
+attempt into the advice box is not a participant discovering a broken browser; it
+is a deliberate act against a stated rule.
+
+**Consequences for the data, in one line each:**
+
+- `ai_paste` and `ai_paste_ch` now count **attempts**, not successes. No paste
+  ever completes on an instrumented page.
+- `ai_env['pguard']` is `1` under the guard. Pilot rows have no `pguard` key at
+  all, so `'pguard' in ai_env` is the wave discriminator — and unlike `guard` it
+  actually survives to the export, because the paste guard arms on Demographics.
+  Pilot and post-guard rows are **not poolable** on any paste column.
+- `ai_paste_ch` inflates on retries exactly as `ai_copy_ch` does. Prefer the
+  `ai_paste` count.
+- A drag-and-drop feeds `ai_paste` and `ai_paste_ch` too — it is a paste that
+  arrived by another route. `ai_drop` records how many of the arrivals were
+  drags. This keeps `pasted_in` and its 100-character threshold covering both
+  routes with no change to the flag logic, and leaves pilot scores untouched
+  (`ai_drop` reads as 0 there).
+- No clipboard *content* is captured on the paste side. There is no paste-side
+  counterpart to `ai_copy_sample`; the decision was counts only.
+- `ai_drop` reaches the All-apps wide CSV only. It has no `survey.Player` mirror
+  column, so that adding it required **no DB migration** — the guard ships onto a
+  running study without an `otree resetdb`.
 
 ## What it cannot see
 
@@ -85,9 +139,29 @@ perfect transcriber does. The two schema-2 flags are therefore gated on
 raw columns carry no such protection: **filter on `ai_schema` before pooling
 pilot and main-wave data.**
 
-Instrumented pages: `InstructionsQuiz` and all five `Decision` rounds in each of
-the four treatment apps, plus `survey/Demographics` — seven pages per participant.
-Consent, the router, and the terminal pages are deliberately not instrumented.
+Instrumented pages: within whichever **one** treatment app the router assigned,
+`InstructionsQuiz` plus all five `Decision` rounds; then `survey/Demographics`.
+Seven pages per participant, which is what `ai_pages_instrumented` should read
+for anyone who finished. Consent, the router, and the terminal pages are
+deliberately not instrumented. The export contains `da`/`boston`/`agent_da`/
+`agent_boston` rows for participants who never played them — filter on
+`participant.treatment`.
+
+Page labels in `ai_pages` are `<app>/InstructionsQuiz` and
+`<app>/Decision/<round>`, plus the literal `survey/Demographics`.
+
+**What each ledger entry contains.** `_compact()` keeps a fixed subset of the
+blob: `ms`, `loads`, `blur`, `hid`, `hid_ms`, `hid_max`, `hid_t1`, `copy`, `cut`,
+`paste`, `drop`, `copy_ch`, `paste_ch`, `sel_max`, `ctx`, `keys`, `ime`, `jumps`,
+`jump_max`, `ttfk`, `comp_ms`, `mouse`, `scroll`, `touch`, `click`, `bksp`,
+`del`, `mid`, `mid_ep`, `pause`, the IKI moments, and `iki_h`. Deliberately
+**not** kept: the raw interval sequences (they would make the wide-CSV cell
+unreadable) and `env` (see the §3.5 warning). A page whose blob was missing or
+unparseable appears as `{"err": ...}` and increments `ai_bad_blobs`. `hid_t1` —
+milliseconds from page load to the first time the tab was hidden — is the field
+that makes the §5.3 sequencing argument checkable, and it exists **only** here.
+The complete, uncompacted blob is always available in the app's own
+`ai_tel_*` column.
 
 # 3. Field reference
 
@@ -110,8 +184,22 @@ Consent, the router, and the terminal pages are deliberately not instrumented.
 | `ai_hid` | — | Times the tab became hidden |
 | `ai_hid_ms` | `ai_hidden_seconds` | Total time the tab was hidden |
 | `ai_hid_max` | `ai_hidden_max_seconds` | Longest single absence |
-| `ai_mouse`, `ai_scroll`, `ai_touch`, `ai_click` | `ai_pointer_events` | Throttled activity counts |
+| `ai_mouse`, `ai_scroll` | part of `ai_pointer_events` | Throttled at 200 ms, so these are "periods with movement", not raw event counts |
+| `ai_touch` | part of `ai_pointer_events` | `touchstart`, not throttled |
+| `ai_click` | — | Clicks. **Not** included in `ai_pointer_events` — see the warning below |
 | `ai_loads` | — | Page loads, including reloads and validation re-renders |
+
+> **Three different definitions of "pointer activity" exist in the code.** They
+> are easy to confuse and they disagree:
+>
+> - `ai_pointer_events` (the mirror column) = `ai_mouse + ai_scroll + ai_touch`. **No clicks.**
+> - the `no_pointer_activity` **flag** = the same three, also **no clicks**.
+> - `ai_no_pointer_pages` (a per-page tally) = mouse + scroll + touch **+ click**.
+>
+> So a participant who only ever clicked — plausible for a keyboard-driven or
+> assistive-technology user — can score `no_pointer_activity` while
+> `ai_no_pointer_pages` is 0. If the two disagree, check `ai_click` directly
+> before treating the flag as evidence of automation.
 
 ## 3.3 Clipboard
 
@@ -119,11 +207,34 @@ Consent, the router, and the terminal pages are deliberately not instrumented.
 |:--|:--|:--|
 | `ai_copy`, `ai_cut` | `ai_copy_count` | Copy / cut events. On `Decision` and `InstructionsQuiz` these are **blocked attempts** — see §1.1 |
 | `ai_copy_ch` | `ai_copy_chars` | Characters copied out, or attempted. Inflated by repeat attempts under the guard |
-| `ai_copy_sample` | — | First 160 characters copied *or attempted*. **Inspect this directly** |
-| `ai_paste` | `ai_paste_count` | Paste events |
-| `ai_paste_ch` | `ai_paste_chars` | Characters pasted in |
-| `ai_sel_max` | `ai_max_selection_chars` | Largest text selection observed |
-| `ai_jump_max` | `ai_max_jump_chars` | Largest single-event insertion with no preceding paste event |
+| `ai_copy_sample` | — | First 160 characters copied *or attempted*. **Inspect this directly.** First-write-wins: the first non-empty copy of the whole study, not the largest or the most recent |
+| `ai_ctx` | — | Right-click menu openings. Cancelled outside form fields on the copy-guarded pages, still counted |
+| `ai_paste` | `ai_paste_count` | Paste events. On every instrumented page these are **blocked attempts**, and they include drag-and-drop arrivals — see §1.2 |
+| `ai_paste_ch` | `ai_paste_chars` | Characters pasted in, or attempted. Inflated by repeat attempts under the guard |
+| `ai_drop` | — | How many of the above arrived by drag-and-drop rather than the clipboard. Blocked, counted as an attempt |
+| `ai_sel_max` | `ai_max_selection_chars` | Largest text selection observed. Sampled from `selectionchange`, throttled at 250 ms |
+| `ai_jumps` | — | Count of large insertions **not** attributable to a paste event — see below |
+| `ai_jump_max` | `ai_max_jump_chars` | Largest single insertion in one `input` event, in characters |
+
+**How jumps are counted, precisely** — the two fields differ and the difference
+matters, because `paste_like_insert` keys off `ai_jump_max`:
+
+- An `input` event that grows the field by **20 or more characters** is a jump.
+  Smaller insertions are never recorded at all, so `ai_jump_max` is either 0 or
+  at least 20.
+- `ai_jump_max` records the size of **every** such insertion, including one that
+  a `paste` event just caused.
+- `ai_jumps` (the count) additionally requires that **no paste event fired in the
+  previous 200 ms**. That is the "arrived by some other route" counter:
+  middle-click paste, drag-and-drop, autofill, or a script setting `.value`.
+
+Pre-guard, a successful 500-character paste therefore set `ai_jump_max` to 500
+and left `ai_jumps` at 0, which made `paste_like_insert` partly redundant with
+`pasted_in`. **Post-guard the two separate cleanly**: a cancelled paste inserts
+nothing, fires no `input` event, and so cannot move `ai_jump_max` at all. Any
+non-zero `ai_jump_max` on a post-guard row means text reached the field by a
+route the guard did not close — which makes it one of the sharper columns you
+have. Check `ai_env['pguard']` before comparing the two waves on it.
 
 ## 3.4 Typing dynamics on the free-text answer
 
@@ -136,7 +247,15 @@ Consent, the router, and the terminal pages are deliberately not instrumented.
 | `ai_advice_ttfk` | `ai_advice_ttfk_ms` | Time to first keystroke |
 | `ai_advice_ms` | `ai_advice_compose_ms` | Span from first to last keystroke |
 | `ai_advice_ime` | `ai_advice_ime_keys` | IME / mobile swipe-typing keys. **Confound control — see §6** |
+| `ai_advice_pastes` | — | Paste attempts **into the advice box specifically**, drags included. The most targeted paste column there is: study-wide `ai_paste` also counts attempts on the quiz and age fields |
+| `ai_advice_jump_max` | — | Largest single insertion into the advice box. The per-field counterpart to `ai_jump_max` |
 | — | `ai_advice_words` | Word count of the submitted answer |
+
+Every column in this section and in §3.4a/§3.4b is **assigned, not accumulated** —
+they are read off the one `survey/Demographics` blob rather than summed across
+pages, unlike the study-wide totals in §3.2/§3.3. A participant who never reached
+Demographics (screened out, quiz-fail, honeypot) has none of them, and they read
+as 0 rather than as missing.
 
 ## 3.4a Revisions (schema 2)
 
@@ -152,7 +271,8 @@ to catch pasting.
 | `ai_advice_bksp_rate` | `ai_advice_bksp_rate` | Backspaces per final character. **Feeds `no_revision`** |
 | `ai_advice_mid` | `ai_advice_midtext_keys` | Keydowns with the caret *not* at the end of the text |
 | `ai_advice_mid_ep` | `ai_advice_midtext_episodes` | Separate occasions of going back to edit. More interpretable than `mid` |
-| `ai_bksp`, `ai_del`, `ai_mid_ep` | `ai_typing_*` | The same three, totalled across every text field in the study |
+| `ai_bksp`, `ai_del`, `ai_mid_ep` | `ai_typing_backspaces`, `ai_typing_deletes`, `ai_typing_midtext_episodes` | The same three, totalled across every text field in the study |
+| `ai_mid` | — | Study-wide mid-text keydowns. No mirror column; wide CSV only |
 
 Mid-text editing is detected from the caret position at keydown. A selection
 being replaced counts as mid-text. `input type="number"` throws on
@@ -201,14 +321,69 @@ If a page's blob would exceed the 24000-character cap, the raw sequences are
 dropped first and `rdrop: 1` is set on that page in `ai_pages`; all counters,
 histograms and moments survive. A dropped page shows `ai_advice_iki_exact = 0`.
 
+## 3.4c Study-wide typing totals
+
+Everything above is the advice box alone. The same measures are also summed
+across **every** text field on **every** instrumented page — the quiz number
+inputs and `age` as well as the two textareas. These have no mirror columns and
+appear only in the All-apps wide CSV.
+
+| Field | Meaning |
+|:--|:--|
+| `ai_keys` | Keydowns in text fields, study-wide. Includes revision keys |
+| `ai_ime` | IME / swipe keydowns, study-wide. The study-wide swipe indicator |
+| `ai_pause` | Gaps of 2 s or more, study-wide |
+| `ai_iki_hist` | 8-bucket interval histogram, study-wide, same edges as above |
+| `ai_iki_n`, `ai_iki_sum`, `ai_iki_sq` | Count, sum, and sum-of-squares of the gaps below 5000 ms |
+| `ai_iki_min`, `ai_iki_max` | Extremes. `ai_iki_min` is the minimum over **non-zero** values, since 0 encodes "no data" |
+
+`ai_iki_sum` and `ai_iki_sq` are raw moments, not summary statistics — they are
+stored that way so that pooling across pages gives an **exact** SD rather than an
+average of per-page averages. Recover the statistics yourself:
+
+```python
+mean = ai_iki_sum / ai_iki_n
+sd   = math.sqrt(max(ai_iki_sq / ai_iki_n - mean**2, 0))   # or ai_detect._mean_sd()
+```
+
+These totals are dominated by the advice box in practice — it is the only field
+where anyone types more than a few characters — so treat them as a robustness
+check on the `ai_advice_*` versions rather than as independent evidence.
+
 ## 3.5 Environment
 
 | Field | Meaning |
 |:--|:--|
 | `ai_webdriver` | `navigator.webdriver` set, or a headless user-agent |
-| `ai_env` | Raw fingerprint: languages, plugins, cores, screen, viewport, timezone |
-| `ai_env['guard']` | `1` if the copy guard was armed on that page, `0` if not. **Required to interpret the clipboard columns — see §1.1** |
-| `ai_no_pointer_pages` | Pages with zero pointer activity of any kind |
+| `ai_env` | Raw fingerprint: languages, plugins, cores, screen, viewport, timezone. **Last-write-wins — see below** |
+| `ai_env['guard']` | Whether the copy guard was armed. **Not usable as written — see below** |
+| `ai_env['pguard']` | Whether the paste guard was armed. Use its **presence**, not its value, as the wave marker — see below |
+| `ai_no_pointer_pages` | Pages with zero mouse, scroll, touch **and** click |
+
+> **`ai_env` is overwritten by every page, so it holds only the last one.**
+> `record()` assigns `pv['ai_env'] = env` rather than merging, and
+> `survey/Demographics` is the last instrumented page every participant sees.
+> The exported `ai_env` is therefore always Demographics' fingerprint.
+>
+> The practical consequences:
+>
+> - **`ai_env['guard']` reads `0` for every completed participant**, because the
+>   copy guard does not arm on Demographics. It cannot tell you what regime the
+>   *task* pages were under, and it is not the pre/post-guard wave marker that
+>   §1.1 originally claimed. To recover per-page guard state, use the page name:
+>   `Decision` and `InstructionsQuiz` are copy-guarded, nothing else is.
+> - **`ai_env['pguard']` works, but only by presence.** It reads `1` for every
+>   post-guard participant (the paste guard *does* arm on Demographics) and the
+>   key is absent entirely on pilot rows, so `'pguard' in ai_env` is a reliable
+>   wave discriminator. Its *value* is likewise uninformative about other pages.
+> - The browser fingerprint fields (`scr`, `tz`, `hc`, …) are stable within a
+>   session, so losing the earlier pages costs nothing there. Only the two guard
+>   flags are page-dependent, and only they are affected.
+>
+> Per-page guard state is not preserved anywhere else either: `_compact()` keeps
+> the counters for `ai_pages` but not `env`. If you want it in the data rather
+> than inferred from page names, add `'env'` to that keep list — an additive
+> change that costs one key per page in the ledger.
 
 # 4. Flag definitions
 
@@ -221,12 +396,12 @@ not empirical** — see §7.
 | `long_absence` | `ai_hid_max >= 60000` |
 | `copied_out` | `ai_copy_ch >= 200` or `ai_cut > 0`. Name kept for continuity; post-guard it reads "attempted to copy out" |
 | `large_selection` | `ai_sel_max >= 1500` |
-| `pasted_in` | `ai_paste_ch >= 100` |
+| `pasted_in` | `ai_paste_ch >= 100`. Name kept for continuity; post-guard it reads "attempted to paste in", and covers drag-and-drop |
 | `paste_like_insert` | `ai_jump_max >= 40` |
-| `low_keystroke_ratio` | `ai_advice_len >= 100` and ratio `< 0.5` |
-| `no_revision` | `ai_advice_len >= 100` and `ai_advice_bksp_rate < 0.02`, **and** `ai_schema >= 2`, **and** `ai_advice_ime <= 5` |
+| `low_keystroke_ratio` | `ai_advice_len >= 100` and `ai_advice_ratio < 0.5`. Note it uses the **raw** ratio, not `ai_advice_prod_ratio` — see §5.4 |
+| `no_revision` | `ai_advice_len >= 100` and `ai_advice_keys > 0` and `ai_advice_bksp_rate < 0.02`, **and** `ai_schema >= 2`, **and** `ai_advice_ime <= 5` |
 | `metronomic_typing` | `ai_advice_iki_n >= 50` and `0 < ai_advice_iki_cv < 0.35`, **and** `ai_schema >= 2`, **and** `ai_advice_ime <= 5` |
-| `no_pointer_activity` | 3+ pages instrumented and zero mouse/touch/scroll |
+| `no_pointer_activity` | 3+ pages instrumented and zero mouse/scroll/touch. **Clicks are not counted** — see §3.2 |
 | `automation_fingerprint` | `ai_webdriver` true |
 
 `ai_score` is the count of flags above and now ranges **0-11**, not 0-9. Any
@@ -238,6 +413,18 @@ leave the same confound to prose in §6. This is deliberate, not an
 inconsistency: swipe typing and autocorrect suppress backspaces and regularise
 cadence simultaneously, so without the gate these two would substantially be
 Android detectors rather than AI detectors.
+
+`no_revision` additionally requires `ai_advice_keys > 0`, so a participant who
+produced the answer with **no keystrokes at all** does not trip it. That is
+correct — the flag is about typing without revising, and someone who never typed
+has not done that — but it means the two flags are not redundant: the pure-paste
+case is caught by `low_keystroke_ratio` and `paste_like_insert` instead. Check
+those before concluding that a clean `no_revision` means a clean row.
+
+**Nothing else in the study reads these flags.** `ai_flags` and `ai_score` are
+written to `participant.vars`, mirrored onto `survey.Player`, and exported. No
+page branches on them, and they are not wired to `suspected_bot`, payment, or
+the bot redirect.
 
 # 5. Interpretation
 
@@ -299,10 +486,17 @@ worth considerably more than any single flag. A participant who merely pasted
 their own draft will not show the copy-out leg.
 
 Since the copy guard, the first leg is an *attempted* copy — the text never
-actually left. The sequence is still diagnostic, and arguably more so, but expect
-the loop to close less often: a participant blocked at the first step may retype
-the instructions by hand, in which case only the hidden-interval and paste legs
-survive. Watch for `copied_out` **without** a later `pasted_in` as the new
+actually left. Since the paste guard, the third leg is an *attempted* paste — the
+text never actually arrived. Both legs are still diagnostic, and arguably more so,
+because each is now a deliberate act against a stated rule rather than an
+invisible one.
+
+Expect the loop to close less often, though. A participant blocked at the first
+step may retype the instructions by hand; one blocked at the third may retype the
+answer. Either way the hidden-interval leg survives, and the residual channels for
+text that genuinely lands in the box are `paste_like_insert` and
+`low_keystroke_ratio` — neither of which the guards touch. Watch for
+`copied_out` and `pasted_in` **without** a completed insertion as the
 guarded-page signature.
 
 ## 5.4 Reading the keystroke ratio
@@ -367,9 +561,17 @@ Every item below is real and observed in practice. They are the reason these fla
 must remain soft.
 
 - **Legitimate tab switching.** The dominant confound. Treat as a covariate.
-- **Drafting elsewhere, then pasting.** Trips `pasted_in`, `paste_like_insert`,
-  and `low_keystroke_ratio` simultaneously — an innocent participant can look
-  maximally guilty on the free-text measures. Corroborate with copy-out.
+- **Drafting elsewhere, then trying to paste.** Still a real confound, but the
+  paste guard has changed its shape. That participant can no longer paste at all:
+  they trip `pasted_in` on the *attempt*, then either retype the draft — which
+  produces ordinary typing dynamics and clears `paste_like_insert` and
+  `low_keystroke_ratio` — or abandon it. So the old signature of all three flags
+  firing together no longer arises innocently. `pasted_in` alone, with clean
+  typing dynamics after it, is the drafted-elsewhere participant; `pasted_in`
+  together with `paste_like_insert` and `low_keystroke_ratio` post-guard means
+  text reached the box by a route the guard did not close, which is a stronger
+  signal than it was pre-guard. Corroborate with copy-out either way, and check
+  `ai_env['pguard']` before pooling with pilot rows.
 - **Mobile swipe typing and autocorrect.** Inserts many characters per input event
   and reports `keyCode 229`. **Always exclude participants with high
   `ai_advice_ime_keys` from the keystroke-ratio test**, or the flag will
@@ -433,10 +635,18 @@ exclusion rule is reproducible.
 - Participants see a visible request not to use AI on the instructions page and
   above the free-text survey question. There is no covert trap, no hidden prompt,
   and no deception in the detection system.
-- The copy guard is likewise overt: a blocked attempt produces a visible toast
-  ("Copying is disabled in this study"), so no one is left thinking their browser
-  is broken. It restricts one interaction on two pages; it does not restrict
-  progress, completion, or payment, and consent text remains fully copyable.
+- Both guards are likewise overt: a blocked attempt produces a visible toast
+  ("Copying is disabled in this study" / "Pasting is disabled in this study"), so
+  no one is left thinking their browser is broken. The paste rule is additionally
+  stated in the text above the free-text answer, *before* anyone tries it. They
+  restrict two interactions; they do not restrict progress, completion, or
+  payment, and consent text remains fully copyable.
+- Blocking paste has an accessibility cost worth naming: a participant using
+  dictation, a translation tool, or an assistive editor to compose their answer
+  elsewhere can no longer transfer it, and must retype. The free-text question is
+  a 50-word minimum, so this is friction rather than exclusion, but it is a real
+  burden on a minority of participants and should be weighed if the minimum ever
+  rises.
 - The consent form was not modified for this instrumentation. If interaction
   logging is not covered by the approved protocol, consider an amendment.
 - `ai_copy_sample` stores up to 160 characters of copied text. In practice this is
@@ -451,7 +661,8 @@ exclusion rule is reproducible.
 | `ai_detect.py` | Server side: parsing, accumulation, flag scoring, word-count rule, export mirror |
 | `_static/global/ai_detect.js` | Client instrumentation; writes one hidden field per page |
 | `_static/global/copy_guard.js` | Cancels the clipboard on the pages in its `GUARDED_PAGES` array. Edit that array to change coverage |
-| `_templates/global/Page.html` | Loads both scripts, guard first. Bump the `?v=` on either `<script>` after editing it |
+| `_static/global/paste_guard.js` | Cancels paste and drop on every page that loads it. No allowlist — change coverage by changing which templates extend `global/Page.html` |
+| `_templates/global/Page.html` | Loads all three scripts, both guards before `ai_detect.js` (which reads their flags once, at load). Bump the `?v=` on any `<script>` after editing it |
 | `settings.py` | `PARTICIPANT_FIELDS` entries that make the data exportable |
 
 A related control: the free-text advice question enforces a **50-word minimum**,
