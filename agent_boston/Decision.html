@@ -32,6 +32,8 @@
         <li><strong>You are in Group {{ my_group }}.</strong> Four participants are in Group A and four are in Group B.</li>
         {{ if is_lowest_in_group }}
         <li><strong>You have the lowest prize priority among the four participants in Group {{ my_group }}.</strong></li>
+        {{ else }}
+        <li><strong>You do not have the lowest prize priority among the four participants in Group {{ my_group }}.</strong></li>
         {{ endif }}
         <li>Each participant will rank prizes. No participant will see the ranking submitted by another participant.</li>
         <li>All unmatched participants are then randomly allocated one of the prizes still available at the end of the process.</li>

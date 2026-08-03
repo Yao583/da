@@ -11,6 +11,14 @@
         .survey-card .form-check { margin-bottom: 8px; }
         /* Hides oTree's default labels when we use custom layouts */
         .checkbox-group label { font-weight: normal; }
+        /* Follow-up to the matching-experience question: revealed by JS. */
+        .followup-hidden { display: none; }
+        .slider-row { display: flex; align-items: center; gap: 12px; max-width: 520px; }
+        .slider-row input[type="range"] { flex: 1; }
+        .slider-row .slider-end { font-size: 14px; color: #495057; white-space: nowrap; }
+        .slider-readout { margin-top: 6px; font-size: 14px; color: #6c757d; }
+        .slider-readout.answered { color: #212529; font-weight: bold; }
+        .matching-na { font-size: 15px; color: #495057; font-style: italic; }
         /* Honeypot field is present in HTML but visually removed for humans. */
         .honeypot-wrap {
             position: absolute;
@@ -62,6 +70,33 @@
         {{ formfield 'party' }}
     </div>
     <div class="survey-card">
+        {{ formfield 'matching_experience' }}
+
+        <div id="matching-followup" class="followup-hidden" style="margin-top: 20px;">
+            <label class="col-form-label">
+                How much did that previous experience influence how you thought about today's task?
+            </label>
+
+            <div id="matching-slider-wrap">
+                <div class="slider-row">
+                    <span class="slider-end">Not at all</span>
+                    <input type="range" min="1" max="10" step="1" value="5"
+                           id="matching_slider" class="form-range">
+                    <span class="slider-end">Very much so</span>
+                </div>
+                <div id="matching-readout" class="slider-readout">Drag the slider to answer.</div>
+            </div>
+
+            <div id="matching-na" class="matching-na followup-hidden">
+                N/A — no previous experience.
+            </div>
+        </div>
+
+        {# Mirrored from #matching_slider by JS; empty means N/A. #}
+        <input type="hidden" name="matching_influence" id="id_matching_influence" value="">
+    </div>
+
+    <div class="survey-card">
         <p class="text-muted mb-3">
             Please answer in your own words. Do not use ChatGPT or any other AI tool
             for this question.
@@ -85,4 +120,58 @@
     <div style="margin-top: 40px; text-align: right;">
         <button class="btn btn-primary btn-lg">Submit & Finish Study</button>
     </div>
+{{ endblock }}
+
+{{ block scripts }}
+<script>
+    // Matching-experience follow-up. 'Yes' asks for a 1-10 influence rating, which
+    // stays empty until the slider is actually moved so an untouched slider is never
+    // recorded as an answer (Demographics.error_message rejects that server-side).
+    // 'No' means N/A and posts an empty value.
+    (function () {
+        var followup = document.getElementById('matching-followup');
+        var sliderWrap = document.getElementById('matching-slider-wrap');
+        var slider = document.getElementById('matching_slider');
+        var readout = document.getElementById('matching-readout');
+        var naLine = document.getElementById('matching-na');
+        var hidden = document.getElementById('id_matching_influence');
+        var radios = document.querySelectorAll('input[name="matching_experience"]');
+
+        if (!followup || !slider || !hidden || !radios.length) { return; }
+
+        function applyAnswer(value) {
+            if (value === 'Yes') {
+                followup.classList.remove('followup-hidden');
+                sliderWrap.classList.remove('followup-hidden');
+                naLine.classList.add('followup-hidden');
+            } else if (value === 'No') {
+                followup.classList.remove('followup-hidden');
+                sliderWrap.classList.add('followup-hidden');
+                naLine.classList.remove('followup-hidden');
+                // N/A: post nothing, and drop anything a previous 'Yes' left behind.
+                hidden.value = '';
+                readout.textContent = 'Drag the slider to answer.';
+                readout.classList.remove('answered');
+            } else {
+                followup.classList.add('followup-hidden');
+            }
+        }
+
+        radios.forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                applyAnswer(this.value);
+            });
+        });
+
+        slider.addEventListener('input', function () {
+            hidden.value = this.value;
+            readout.textContent = 'Your answer: ' + this.value + ' out of 10';
+            readout.classList.add('answered');
+        });
+
+        // Restore the right branch if the page comes back with a form error.
+        var checked = document.querySelector('input[name="matching_experience"]:checked');
+        applyAnswer(checked ? checked.value : '');
+    })();
+</script>
 {{ endblock }}

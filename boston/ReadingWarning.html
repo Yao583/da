@@ -1,0 +1,32 @@
+{{ block styles }}
+<style>
+    .warning-box {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 6px;
+        padding: 40px 45px;
+        margin-bottom: 30px;
+        max-width: 36em;
+        font-size: 1.5em;
+        line-height: 1.6;
+    }
+</style>
+{{ endblock }}
+
+{{ block title }}
+    Before You Begin
+{{ endblock }}
+
+{{ block content }}
+
+<div class="warning-box">
+    <p class="justify">This study requires a lot of reading and comprehension. However, it also pays quite well relative to other studies. If this sounds like it's not for you, no worries, but please close the study now. Otherwise, click next.</p>
+</div>
+
+<div>
+    <button class="btn btn-primary" style="background-color: #0d6efd; border-color: #0d6efd; padding: 12px 28px; font-size: 18px;">
+        Next
+    </button>
+</div>
+
+{{ endblock }}

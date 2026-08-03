@@ -305,6 +305,14 @@ class Consent(Page):
         return player.subsession.round_number == 1
 
 
+class ReadingWarning(Page):
+    """Self-screening gate: warns that the study is reading-heavy before anyone
+    burns a market slot on it."""
+    @staticmethod
+    def is_displayed(player: Player):
+        return player.subsession.round_number == 1
+
+
 class InstructionsQuiz(Page):
     form_model = 'player'
     form_fields = ['quiz1', 'quiz2', 'quiz3', 'quiz4', 'quiz5', 'quiz6', 'quiz7', 'quiz8', 'quiz9',
@@ -328,6 +336,7 @@ class InstructionsQuiz(Page):
             nr_others=C.NUM_LAB_PLAYERS - 1,
             players_per_group=C.NUM_LAB_PLAYERS,
             indices=[j for j in range(1, C.NR_PRIZES + 1)],
+            player_indices=[j for j in range(1, C.NUM_LAB_PLAYERS + 1)],
             letters=[chr(ord('A') + j) for j in range(C.NR_PRIZES)],
             letters_str=','.join(chr(ord('A') + j) for j in range(C.NR_PRIZES)),
             capacities=C.CAPACITIES,
@@ -444,4 +453,4 @@ class Decision(Page):
         if player.round_number == C.NUM_ROUNDS:
             return 'survey'
 # endregion
-page_sequence = [Consent, InstructionsQuiz, Decision]
+page_sequence = [Consent, ReadingWarning, InstructionsQuiz, Decision]

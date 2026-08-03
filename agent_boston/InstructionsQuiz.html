@@ -90,7 +90,7 @@
     </div>
 
     <p class="justify">Under each prize A, B, C, D, E, or F, this participant from Group A can see how much money each prize would add to their earnings. Specifically, if this participant ends up receiving prize A, it adds $15 to their earnings. If this participant ends up receiving prize B, it adds $13 to their earnings. Any participant from Group A will value Prize A at $15 and prize B at $13, but the value of the next four prizes are specific to this participant and may be different to other participants. For instance, this participant adds $7 to their earnings if they end up receiving Prize D and so on.</p>
-    <p class="justify">The number between parentheses next to the letter indicating each prize lets you know how many prizes with that letter are available. Specifically, there are two A prizes available, two B prizes available, but only one C, one D, one E and one F.</p>
+    <p class="justify">The number between parentheses next to the letter indicates how many prizes with that letter are available. Specifically, there are two A prizes available, two B prizes available, but only one C, one D, one E and one F.</p>
 
     <button type="button" id="continue-prizes" class="btn-continue" onclick="showNext('quiz-1', 'continue-prizes')">Continue</button>
 </div>
@@ -131,7 +131,10 @@
     <div class="mb-3">
         <label class="col-form-label"><strong>Question 5:</strong> How many of the {{ players_per_group }} participants will be in Group A?</label>
         <div style="margin-left:20px;">
-            <input type="number" name="quiz5" id="id_quiz5" class="form-control quiz-number" step="1" min="0">
+            <select name="quiz5" id="id_quiz5" class="form-select" style="max-width:140px;">
+                <option value="">-- Select --</option>
+                {{ for i in player_indices }}<option value="{{ i }}">{{ i }}</option>{{ endfor }}
+            </select>
         </div>
     </div>
     <div class="mb-3">
@@ -526,6 +529,9 @@
 <script>
     // Correct answers for each quiz section. Select-all answers are the sorted, comma-joined
     // option tokens, so a partially-checked set counts as wrong.
+    // Wrong attempts allowed per quiz section before the study terminates.
+    var MAX_QUIZ_ATTEMPTS = 4;
+
     var ANSWERS = {
         1: {
             quiz1: 'two',
@@ -684,9 +690,9 @@
                 }
             }, 1200);
         } else {
-            if (currentAttempts >= 4) {
+            if (currentAttempts >= MAX_QUIZ_ATTEMPTS) {
                 feedbackEl.className = 'quiz-feedback incorrect';
-                feedbackEl.innerHTML = '<strong>You have answered incorrectly 4 times. The experiment will now terminate.</strong>';
+                feedbackEl.innerHTML = '<strong>You have answered incorrectly ' + MAX_QUIZ_ATTEMPTS + ' times. The experiment will now terminate.</strong>';
 
                 var failedField = document.getElementById('id_failed_quiz');
                 if (failedField) {
@@ -718,12 +724,12 @@
                 return;
             }
 
+            var remaining = MAX_QUIZ_ATTEMPTS - currentAttempts;
             feedbackEl.className = 'quiz-feedback incorrect';
-            if (wrong === 1) {
-                feedbackEl.textContent = 'You answered 1 question incorrectly. Please try again.';
-            } else {
-                feedbackEl.textContent = 'You answered ' + wrong + ' questions incorrectly. Please try again.';
-            }
+            feedbackEl.textContent =
+                'You answered ' + wrong + (wrong === 1 ? ' question' : ' questions') +
+                ' incorrectly. Please try again. You have ' + remaining +
+                (remaining === 1 ? ' attempt' : ' attempts') + ' remaining.';
         }
     }
 </script>

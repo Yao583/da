@@ -1,16 +1,48 @@
 <h4>Recruitment counter (target = {{ markets_per_treatment }} market(s) per treatment)</h4>
 <p>
-    Usable finishers so far: <strong>{{ usable_total }}</strong>
-    &rarr; complete groups of 8: <strong>{{ full_groups }}</strong>.
-    Keep Prolific places open until every "remaining" below reaches 0.
+    Usable finishers so far: <strong>{{ usable_total }}</strong>.
+    Markets assembled: <strong>{{ markets_assembled }}</strong> of {{ markets_target }}.
+    Close recruitment only when every "remaining" below is 0 <em>and</em> "queued" is 0.
 </p>
-<table class="table table-sm table-bordered" style="max-width: 720px;">
+
+{{ if stranded }}
+<div class="alert alert-warning" style="max-width: 720px;">
+    <strong>{{ stranded }} usable finisher(s) are queued with no market.</strong>
+    They were told on ThankYou that a bonus is coming, but a market only closes when all
+    four buckets have their quota. Fill the buckets they are waiting on, or pay them the
+    flat average bonus via <code>finalize_bonuses.py</code>.
+</div>
+{{ endif }}
+
+<table class="table table-sm table-bordered" style="max-width: 560px;">
+    <thead>
+        <tr>
+            <th>Treatment</th>
+            <th>Markets assembled</th>
+            <th>Target</th>
+            <th>Queued (waiting)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{ for t in treatments }}
+        <tr>
+            <td>{{ t.treatment }}</td>
+            <td>{{ t.assembled }}</td>
+            <td>{{ t.target }}</td>
+            <td>{{ t.queued }}</td>
+        </tr>
+        {{ endfor }}
+    </tbody>
+</table>
+
+<table class="table table-sm table-bordered" style="max-width: 820px;">
     <thead>
         <tr>
             <th>Treatment</th>
             <th>Bucket</th>
             <th>Completed</th>
             <th>Active (in flight)</th>
+            <th>Queued</th>
             <th>Target</th>
             <th>Remaining</th>
         </tr>
@@ -22,6 +54,7 @@
             <td>{{ row.bucket }}</td>
             <td>{{ row.completed }}</td>
             <td>{{ row.active }}</td>
+            <td>{{ row.queued }}</td>
             <td>{{ row.target }}</td>
             <td>{{ row.remaining }}</td>
         </tr>

@@ -14,11 +14,15 @@ class C(BaseConstants):
     # excluded from the study, so it is listed in neither place.
     TREATMENT_APPS = allocation.TREATMENTS
     BUCKETS = allocation.BUCKETS
-    # A participant who hasn't made a request in 20 minutes is treated as a dropout and
-    # stops holding a slot in their bucket, so the next arrival can refill that slot. This
-    # measures time since the last HTTP request, not elapsed study time; a slow reader on
-    # the one-page InstructionsQuiz can trip it, which is safe: the bucket merely looks
-    # emptier, so it admits one more arrival and later completions self-correct.
+    # A participant who hasn't made a request in this long is treated as a dropout and stops
+    # holding a slot in their bucket, so the next arrival can refill it. This measures time
+    # since the last HTTP *request*, not elapsed study time, and the treatment apps make no
+    # AJAX/live-method calls -- so the whole 690-line InstructionsQuiz (full instructions plus
+    # a 30-field quiz with retries) is a single silent gap. Set this below a careful reader's
+    # time on that page and their slot gets double-booked: they still finish and count, so the
+    # bucket lands one over target and the extra finisher is stranded with no market and no
+    # bonus. Lowering it trades recruitment wait for over-recruitment, and the extras cluster
+    # on slow readers -- the da-only pilot ran 10 minutes and finished A_normal 19/18.
     ACTIVE_TIMEOUT_SECONDS = 20 * 60  # 20 mins
 
 
@@ -71,7 +75,7 @@ def _draw_bucket(session):
     """Pick the (treatment, bucket) that still needs finishers and is least loaded.
 
     Returns None when every bucket's pipeline (completions + in-flight actives) is already
-    at target -- the caller then screens the arrival out. Buckets that are pipeline-full
+    at target -- the caller then turns the arrival away unpaid. Buckets that are pipeline-full
     but not completion-full recover as their actives time out and later arrivals refill.
     """
     completed, active = _bucket_counts(session)
@@ -102,13 +106,25 @@ def creating_session(subsession):
 
 def vars_for_admin_report(subsession):
     """Live per-(treatment, bucket) counter so recruitment can be topped up to fill every
-    bucket. Shows completed / active / remaining against target."""
+    bucket. Shows completed / active / queued / remaining against target, plus how many
+    markets each treatment has actually assembled.
+
+    ``queued`` and ``markets`` come from the two session vars the survey app writes in
+    ``_assemble_markets``: ``queues`` ({treatment: {bucket: [codes]}}) holds usable finishers
+    still waiting for a market, and ``market_seq`` ({treatment: n}) counts assembled markets.
+    A finisher only leaves the queue when a whole group of 8 closes around them, so a queue
+    that stops draining is the early warning that someone will be stranded without a bonus.
+    """
     session = subsession.session
     completed, active = _bucket_counts(session)
-    targets = allocation.bucket_targets(_markets_per_treatment(session))
+    markets = _markets_per_treatment(session)
+    targets = allocation.bucket_targets(markets)
+    queues = session.vars.get('queues') or {}
+    seq = session.vars.get('market_seq') or {}
 
     rows = []
     for t in C.TREATMENT_APPS:
+        tq = queues.get(t) or {}
         for b in C.BUCKETS:
             done = completed[t][b]
             act = active[t][b]
@@ -118,14 +134,35 @@ def vars_for_admin_report(subsession):
                 target=targets[b],
                 completed=done,
                 active=act,
+                queued=len(tq.get(b) or []),
                 remaining=max(targets[b] - done, 0),
             ))
+
+    # Per-treatment market progress. ``stranded`` is what is left queued once every whole
+    # market that CAN be assembled already has been -- those finishers were promised a bonus
+    # on ThankYou and cannot be paid one, so this must read 0 before recruitment closes.
+    treatments = []
+    stranded_total = 0
+    for t in C.TREATMENT_APPS:
+        tq = queues.get(t) or {}
+        waiting = sum(len(tq.get(b) or []) for b in C.BUCKETS)
+        treatments.append(dict(
+            treatment=t,
+            assembled=seq.get(t, 0),
+            target=markets,
+            queued=waiting,
+        ))
+        stranded_total += waiting
 
     usable_total = sum(r['completed'] for r in rows)
     return dict(
         rows=rows,
-        markets_per_treatment=_markets_per_treatment(session),
+        treatments=treatments,
+        markets_per_treatment=markets,
         usable_total=usable_total,
+        markets_assembled=sum(t['assembled'] for t in treatments),
+        markets_target=markets * len(C.TREATMENT_APPS),
+        stranded=stranded_total,
         full_groups=usable_total // allocation.NUM_PLAYERS,
     )
 
@@ -144,7 +181,10 @@ class RouteToTreatment(Page):
         if treatment not in C.TREATMENT_APPS:
             drawn = _draw_bucket(player.session)
             if drawn is None:
-                # Study is full: pay the show-up fee, no bonus, exclude from data.
+                # Study is full: send them to the survey app's StudyFull dead end, which
+                # asks them to return their Prolific submission. No completion code, no
+                # payment, excluded from data. They are stopped before Consent, so they
+                # are turned away without having done any work.
                 participant.vars['screened_out'] = True
                 return 'survey'
 

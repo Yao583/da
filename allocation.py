@@ -22,12 +22,10 @@ CF_VALUES = [1, 3, 5, 7]                 # idiosyncratic values for prizes C, D,
 AB_HIGH, AB_LOW = 15, 13                 # own-group prize / other-group prize
 NO_PRIZE_TOKEN = '0'
 
-# PILOT: da only. Restore to
-#     ['da', 'boston', 'agent_da', 'agent_boston']
-# together with settings.py's app_sequence -- the treatment_router draws from
-# this list and raises if the drawn app is not in the session's app_sequence.
-# MECHANISMS below deliberately keeps all four entries; only routing changes.
-TREATMENTS = ['da']
+# Must stay in sync with settings.py's app_sequence: the treatment_router draws from this
+# list and raises if the drawn app is not in the session's app_sequence. MECHANISMS below
+# always keeps all four entries; dropping a treatment is a routing change only.
+TREATMENTS = ['da', 'boston', 'agent_da', 'agent_boston']
 
 # --- Completion buckets -----------------------------------------------------
 # Each usable finisher lands in one bucket. A market is assembled from

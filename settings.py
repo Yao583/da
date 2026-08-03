@@ -3,25 +3,34 @@ from os import environ
 SESSION_CONFIGS = [
     dict(
         name='prolific_experiment',
-        # --- PILOT CONFIGURATION: da only, 48 usable finishers ---------------
-        # To restore the full four-treatment study, revert these three keys to
-        # num_demo_participants=32, markets_per_treatment=1, and the six-app
-        # app_sequence below -- AND restore allocation.TREATMENTS to all four.
-        # The two files must be changed together: the router raises if it draws
+        # --- FULL STUDY: all four treatments ---------------------------------
+        # The treatment list lives in two places and they must be changed together:
+        # app_sequence below and allocation.TREATMENTS. The router raises if it draws
         # a treatment that is not in app_sequence.
-        display_name="Prolific PILOT: da only",
-        num_demo_participants=48,
+        display_name="Prolific study: da / boston / agent_da / agent_boston",
+        # Participant SLOTS, not the recruitment target. Every arrival burns one --
+        # finishers, quiz-fails, silent dropouts, and everyone screened out after the
+        # study fills. Once they run out oTree answers a bare "Session is full." 404
+        # instead of the survey app's StudyFull page, so keep generous headroom: the
+        # da-only pilot burned 104 slots for 48 usable finishers (2.17x). 32 usable
+        # therefore needs ~70, and the rest absorbs screen-out arrivals.
+        # NOTE: for a room session this only prefills the create-session form; the
+        # number you type there is what counts.
+        num_demo_participants=100,
         # Groups of 8 formed per treatment. Bucket targets are 3M/M/3M/M (A_normal/A_lowest/
         # B_normal/B_lowest), so each treatment needs 8*M usable finishers. Watch the router's
         # admin report and keep Prolific places open until every bucket's "remaining" hits 0.
-        # Pilot: 8 * 6 * 1 treatment = 48 usable, i.e. targets of 18/6/18/6.
-        markets_per_treatment=6,
+        # Here: 8 * 1 market * 4 treatments = 32 usable, i.e. targets of 3/1/3/1 per treatment.
+        # At M=1 there is no slack -- A_lowest and B_lowest have a target of ONE, so a single
+        # missing finisher leaves that whole arm without an assembled market.
+        markets_per_treatment=1,
         prolific_bot_redirect_url='https://app.prolific.com/submissions/complete?cc=C1HW4JRM',
         app_sequence=[
             'treatment_router',
             'da',
-            # Pilot: boston, agent_da and agent_boston are out of the sequence.
-            # Restore them here together with allocation.TREATMENTS.
+            'boston',
+            'agent_da',
+            'agent_boston',
             'survey',
         ],
     ),
@@ -52,7 +61,8 @@ PARTICIPANT_FIELDS = [
     'role',            # 'A' (values A>B) or 'B' (values B>A); fixed for the whole study
     'is_lowest',       # designated lowest-priority member of their group (A or B)
     'bucket',          # 'A_normal' | 'A_lowest' | 'B_normal' | 'B_lowest'
-    'screened_out',    # arrived after all buckets were full (study full); show-up fee only
+    'screened_out',    # arrived after all buckets were full (study full); unpaid, asked to
+                       # return their Prolific submission (no completion code)
     'market_id',       # id of the assembled group of 8, e.g. 'da-3' (also the RNG seed)
     'market_pid',      # this member's 1..8 slot in the market (with market_id -> reconstructable)
     'market_vals',     # {round: [6 valuations]} the participant actually saw

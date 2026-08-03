@@ -1,5 +1,5 @@
 from otree.api import Bot, Submission
-from . import Consent, InstructionsQuiz, Decision
+from . import C, Consent, ReadingWarning, InstructionsQuiz, Decision
 
 QUIZ = dict(
     quiz1='two', quiz2='one', quiz3='two', quiz4='one', quiz5=4, quiz6='1,2',
@@ -17,7 +17,13 @@ QUIZ = dict(
 
 class PlayerBot(Bot):
     def play_round(self):
+        # oTree builds Player rows in every app for every participant, but the router sends
+        # each one to a single treatment (and screened-out arrivals straight to survey), so
+        # most participants never see these pages. Play only if this is our treatment.
+        if self.participant.vars.get('treatment') != C.NAME_IN_URL:
+            return
         if self.round_number == 1:
             yield Submission(Consent, check_html=False)
+            yield Submission(ReadingWarning, check_html=False)
             yield Submission(InstructionsQuiz, QUIZ, check_html=False)
         yield Submission(Decision, dict(pref_ranking='ABCDEF'), check_html=False)

@@ -1,0 +1,32 @@
+{{ block title }}
+    Study Full
+{{ endblock }}
+
+{{ block content }}
+    {# Deliberately no completion code, no redirect, and no next button: this page is a
+       dead end and the participant is asked to return the submission instead. #}
+    <div style="text-align: center; margin-top: 50px;">
+        <h4 style="color: #dc3545;">Unfortunately, this study is already full.</h4>
+        <p>We have already collected the number of participants we need, so we are not able to
+            let you take part.</p>
+
+        <div class="card bg-light my-4 mx-auto" style="max-width: 480px;">
+            <div class="card-body">
+                <p class="card-text mb-0">
+                    Please go back to Prolific and click
+                    <strong>&ldquo;Stop without completing&rdquo;</strong> to return your
+                    submission, so that your place is released for someone else.
+                </p>
+            </div>
+        </div>
+
+        <p style="font-size: 14px; color: #6c757d;">
+            <em>Returning a submission does not count against your Prolific record. Because the
+            study never started, there is no payment for this submission.</em>
+        </p>
+
+        <p style="margin-top: 30px;">
+            We are sorry for the inconvenience, and thank you for your interest.
+        </p>
+    </div>
+{{ endblock }}

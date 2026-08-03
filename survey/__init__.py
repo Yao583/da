@@ -8,7 +8,8 @@ Final survey + study completion. Reaching ThankYou marks a participant as a comp
 usable completer (finished, not a quiz-fail, not a suspected bot) is queued into their
 treatment's (role, lowest) bucket; once a full group of 8 is available the treatment's
 mechanism is run post-hoc to fill every member's bonus. Screened-out arrivals (study full)
-land here too and receive the show-up fee only.
+land here too, but stop on StudyFull: they are never shown a completion code and are asked
+to return their Prolific submission, so they are paid nothing.
 """
 
 
@@ -253,6 +254,20 @@ class Player(BasePlayer):
     sex_dont_know = models.BooleanField(label="I don't know", widget=widgets.CheckboxInput, blank=True)
     sex_prefer_not = models.BooleanField(label="Prefer not to answer", widget=widgets.CheckboxInput, blank=True)
 
+    # --- PRIOR EXPERIENCE WITH MATCHING ---
+    matching_experience = models.StringField(
+        label=(
+            "Have you gone through a matching process before — for example being "
+            "assigned to a school, a job, a dorm, a team, or a study on Prolific?"
+        ),
+        choices=['Yes', 'No'],
+        widget=widgets.RadioSelectHorizontal,
+    )
+    # Blank == N/A. Only meaningful when matching_experience == 'Yes'; the 'No'
+    # branch is forced back to None in Demographics.before_next_page. Posted by a
+    # hand-written hidden input in Demographics.html that the slider mirrors into.
+    matching_influence = models.IntegerField(min=1, max=10, blank=True)
+
     # The 50-word floor is enforced server-side in Demographics.error_message via
     # ai_detect.advice_error(); the live counter in ai_detect.js is only a hint.
     intergenerational_advice = models.LongStringField(
@@ -271,6 +286,28 @@ class Player(BasePlayer):
 
 
 # PAGES
+class StudyFull(Page):
+    """Dead end for arrivals the router turned away because every bucket was full.
+
+    They are stopped before Consent, having done no work, so they are paid nothing: the
+    template shows no completion code and has no next button, and asks them to return the
+    Prolific submission instead. ThankYou (the only page with the completion code) also
+    skips them, so a hand-crafted POST past this page still cannot reach a code.
+    """
+
+    @staticmethod
+    def is_displayed(player: Player):
+        return bool(player.participant.vars.get('screened_out', False))
+
+    @staticmethod
+    def vars_for_template(player: Player):
+        ai_detect.mirror_to_player(player)
+        # Say "unpaid" explicitly rather than leaving the export columns blank.
+        player.participant.payoff = 0
+        player.participant.vars['total_payment'] = 0
+        return {}
+
+
 class Demographics(Page):
     form_model = 'player'
     
@@ -280,7 +317,9 @@ class Demographics(Page):
         'race_native', 'race_asian', 'race_black', 'race_hispanic', 'race_mena', 'race_hawaiian', 'race_white', 'race_other', 'race_prefer_not',
         'gender_man', 'gender_woman', 'gender_trans_nonbinary', 'gender_prefer_not',
         'sex_gay_lesbian', 'sex_straight', 'sex_bisexual', 'sex_different', 'sex_dont_know', 'sex_prefer_not',
-        'lgbtq', 'education', 'state', 'community', 'employment', 'income', 'politics', 'party', 'intergenerational_advice', 'comments',
+        'lgbtq', 'education', 'state', 'community', 'employment', 'income', 'politics', 'party',
+        'matching_experience', 'matching_influence',
+        'intergenerational_advice', 'comments',
         'website',
         'ai_tel_demographics',
     ]
@@ -292,6 +331,11 @@ class Demographics(Page):
 
     @staticmethod
     def error_message(player: Player, values):
+        # The slider is optional in the model (blank=True) because the 'No' branch
+        # legitimately leaves it empty; 'Yes' without a value is enforced here.
+        if values.get('matching_experience') == 'Yes' and values.get('matching_influence') is None:
+            return ('Please use the slider to say how much your previous experience '
+                    'influenced you.')
         # Server-side authority for the 50-word rule. The client counter is a hint
         # only and never blocks, so a client/server split cannot trap anyone.
         return ai_detect.advice_error(values.get('intergenerational_advice'))
@@ -307,6 +351,11 @@ class Demographics(Page):
 
     @staticmethod
     def before_next_page(player: Player, timeout_happened):
+        # 'No' means N/A: clear any slider value left behind by someone who
+        # answered 'Yes', moved the slider, then switched their answer to 'No'.
+        if player.matching_experience == 'No':
+            player.matching_influence = None
+
         honeypot_value = (player.website or '').strip()
         is_honeypot_triggered = bool(honeypot_value)
 
@@ -343,20 +392,24 @@ class ThankYou(Page):
 
     @staticmethod
     def is_displayed(player: Player):
-        return not player.participant.vars.get('suspected_bot', False)
+        # Screened-out arrivals stop on StudyFull: this page carries the Prolific completion
+        # code, and they are not paid.
+        return (
+            not player.participant.vars.get('suspected_bot', False)
+            and not player.participant.vars.get('screened_out', False)
+        )
 
     @staticmethod
     def vars_for_template(player: Player):
         participant = player.participant
-        # Mirror the AI-usage summary here too: quiz-fails and screened-out
-        # participants skip Demographics but still reach this page.
+        # Mirror the AI-usage summary here too: quiz-fails skip Demographics but still
+        # reach this page.
         ai_detect.mirror_to_player(player)
         # Reaching this page counts as study completion for router rebalancing.
         participant.vars['study_completed'] = True
 
-        screened_out = bool(participant.vars.get('screened_out', False))
         failed_quiz = bool(participant.vars.get('failed_quiz', False))
-        usable = not screened_out and not failed_quiz and not participant.vars.get('suspected_bot')
+        usable = not failed_quiz and not participant.vars.get('suspected_bot')
 
         # Queue this completer and assemble any group of 8 that is now complete. The bonus is
         # usually still pending here (the participant's groupmates finish later); it is filled
@@ -377,11 +430,10 @@ class ThankYou(Page):
             'winning_round': player.session.vars.get('paying_round', 1),
             'participation_fee': showup_fee,
             'usable': usable,
-            'screened_out': screened_out,
             'failed_quiz': failed_quiz,
             'bonus_pending': bonus_pending,
             'redemption_code': participant.label or participant.code,
         }
 
 # Make sure to add it to the sequence!
-page_sequence = [Demographics, BotBlocked, ThankYou]
+page_sequence = [StudyFull, Demographics, BotBlocked, ThankYou]
