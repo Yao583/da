@@ -1,0 +1,37 @@
+{{ block title }}
+    Study Ended
+{{ endblock }}
+
+{{ block content }}
+    {# Deliberately no completion code, no screen-out code, no redirect, and no next button:
+       this page is a dead end and the participant is asked to return the submission instead. #}
+    <div style="text-align: center; margin-top: 50px;">
+        <h4 style="color: #dc3545;">You did not pass the comprehension quiz.</h4>
+
+        <div class="card bg-light my-4 mx-auto" style="max-width: 520px;">
+            <div class="card-body" style="text-align: left;">
+                <p class="card-text">
+                    As explained before the instructions, this study can only be completed
+                    by participants who answer the comprehension questions correctly.
+                    Your session ends here and <strong>no payment is due</strong>.
+                </p>
+                <p class="card-text mb-0">
+                    Please go back to Prolific and click
+                    <strong>&ldquo;Stop without completing&rdquo;</strong> to return your
+                    submission, so that your place is released for someone else.
+                </p>
+            </div>
+        </div>
+        <p style="font-size: 14px; color: #6c757d;">
+            <em>Returning a submission does not count against your Prolific record. Because the
+            study cannot be completed without passing the comprehension quiz, there is no
+            payment for this submission.</em>
+        </p>
+
+        <p style="margin-top: 30px;">
+            We are sorry for the inconvenience, and thank you for your interest.
+        </p>
+    </div>
+
+{{ endblock }}
+

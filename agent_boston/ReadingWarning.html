@@ -10,6 +10,13 @@
         font-size: 1.5em;
         line-height: 1.6;
     }
+    .warning-box p + p {
+        margin-top: 1em;
+    }
+    .warning-box .payment-condition {
+        border-left: 4px solid #dc3545;
+        padding-left: 18px;
+    }
 </style>
 {{ endblock }}
 
@@ -20,7 +27,11 @@
 {{ block content }}
 
 <div class="warning-box">
-    <p class="justify">This study requires a lot of reading and comprehension. However, it also pays quite well relative to other studies. If this sounds like it's not for you, no worries, but please close the study now. Otherwise, click next.</p>
+    <p class="justify">This study requires a lot of reading and comprehension. However, it also pays quite well relative to other studies: a <strong>$6.50</strong> base payment, plus a bonus of up to <strong>$7.50</strong> depending on the prize you end up receiving.</p>
+
+    <p class="justify payment-condition"><strong>You will only be paid if you answer the comprehension quiz correctly and finish the whole study.</strong> After the instructions there is a quiz. If you answer any one of its sections incorrectly four times, the study ends immediately and you receive no payment at all &mdash; not even the base payment &mdash; and you will be asked to return your submission on Prolific.</p>
+
+    <p class="justify">If this sounds like it's not for you, no worries, but please close the study now. Otherwise, click next.</p>
 </div>
 
 <div>

@@ -29,9 +29,9 @@
     'use strict';
 
     // Which oTree page classes are guarded, lowercased. Edit this to change
-    // coverage. Consent, Demographics, ThankYou, BotBlocked and the router are
+    // coverage. Consent, Demographics, ThankYou, QuizFailed and the router are
     // left alone on purpose: consent text should stay savable, and the Prolific
-    // return page must stay copyable.
+    // return pages must stay copyable.
     var GUARDED_PAGES = ['decision', 'instructionsquiz'];
 
     var NOTICE = 'Copying is disabled in this study.';

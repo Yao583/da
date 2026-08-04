@@ -11,3 +11,11 @@ __pycache__/
 *.py[cod]
 .DS_Store
 *.otreezip
+
+# Payment run artifacts: the ledger is the only thing preventing double payment,
+# and the Prolific exports hold participant data. Keep all of it local.
+bonuses_paid.csv
+bonuses.csv
+sheet*.csv
+prolific_submissions.csv
+all_apps_final.csv

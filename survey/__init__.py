@@ -16,9 +16,12 @@ to return their Prolific submission, so they are paid nothing.
 def _queue_and_group(player):
     """Queue a usable completer and assemble any groups of 8 that are now complete.
 
-    Concurrency note (mirrors the router): two completions landing in the same instant on a
-    multi-worker deployment could both try to assemble; the window is one request and each
-    participant is queued at most once, so at worst a group is assembled one completion late.
+    Concurrency note (mirrors the router): ``session.vars`` is a read-modify-write blob, so on
+    a multi-worker deployment two completions landing in the same instant can both read the
+    queue before either writes it. The ``market_queued`` flag alone does not close that window
+    -- it is read and set in the same request -- so the queue append is idempotent as well: a
+    code already queued, or already placed in a market, is never added again. _assemble_markets
+    then re-checks the same invariants before it writes anything.
     """
     participant = player.participant
     if participant.vars.get('market_queued'):
@@ -27,7 +30,7 @@ def _queue_and_group(player):
     bucket = participant.vars.get('bucket')
     if treatment not in allocation.TREATMENTS or bucket not in allocation.BUCKETS:
         return
-    if participant.vars.get('failed_quiz') or participant.vars.get('suspected_bot'):
+    if participant.vars.get('failed_quiz'):
         return
 
     participant.vars['market_queued'] = True
@@ -35,11 +38,32 @@ def _queue_and_group(player):
     session = player.session
     queues = session.vars.get('queues') or {}
     tq = queues.get(treatment) or {b: [] for b in allocation.BUCKETS}
-    tq[bucket].append(participant.code)
+    already_queued = any(participant.code in tq.get(b, []) for b in allocation.BUCKETS)
+    if not already_queued and not participant.vars.get('market_id'):
+        tq[bucket].append(participant.code)
     queues[treatment] = tq
     session.vars['queues'] = queues
 
     _assemble_markets(session, treatment)
+
+
+def _next_market_index(treatment, seq, code_to_pp):
+    """One past the highest index this treatment has ever used.
+
+    ``session.vars['market_seq']`` alone is not enough: it is part of the same read-modify-write
+    blob as the queues, so a stale copy can hand back an index that is already in use and mint
+    a second ``da-3``. The market ids already written on participants cannot go backwards, so
+    they are the authority; seq only covers the (impossible) case of a market with no members.
+    """
+    highest = int(seq.get(treatment, 0) or 0)
+    prefix = f"{treatment}-"
+    for pp in code_to_pp.values():
+        market_id = str(pp.vars.get('market_id') or '')
+        if market_id.startswith(prefix):
+            suffix = market_id[len(prefix):]
+            if suffix.isdigit():
+                highest = max(highest, int(suffix))
+    return highest + 1
 
 
 def _assemble_markets(session, treatment):
@@ -53,13 +77,35 @@ def _assemble_markets(session, treatment):
     paying_round = int(session.vars.get('paying_round', 1) or 1)
     code_to_pp = {pp.code: pp for pp in session.get_participants()}
 
+    # Sanitise the queue before anything is picked from it. A stale session.vars snapshot can
+    # re-offer a code that has already been placed, or list one twice; either would produce a
+    # market that is not 8 distinct people.
+    for b in allocation.BUCKETS:
+        seen, clean = set(), []
+        for code in tq.get(b, []):
+            pp = code_to_pp.get(code)
+            if code in seen or pp is None or pp.vars.get('market_id'):
+                continue
+            seen.add(code)
+            clean.append(code)
+        tq[b] = clean
+
     while all(len(tq[b]) >= need[b] for b in allocation.BUCKETS):
         picked = []
         for b in allocation.BUCKETS:
             for _ in range(need[b]):
                 picked.append(tq[b].pop(0))
 
-        idx = seq.get(treatment, 0) + 1
+        # Only ever compute bonuses for a market of exactly 8 distinct, unplaced participants.
+        # If that does not hold, write nothing and stop: everyone involved stays a usable
+        # finisher with no market, and finalize_bonuses.py settles them as leftovers at the
+        # end. Half-writing a malformed market is the one outcome worth avoiding.
+        if (len(picked) != allocation.NUM_PLAYERS
+                or len(set(picked)) != len(picked)
+                or any(code_to_pp[code].vars.get('market_id') for code in picked)):
+            break
+
+        idx = _next_market_index(treatment, seq, code_to_pp)
         seq[treatment] = idx
         market_id = f"{treatment}-{idx}"
 
@@ -82,12 +128,15 @@ def _assemble_markets(session, treatment):
         # the RNG seed) makes the whole allocation reconstructable from the exported data.
         for pid, code in enumerate(picked, start=1):
             pp = code_to_pp[code]
+            # allocation works in Crowns; this is the one place they become dollars.
+            # market_detail stays in Crowns so it matches what the participant saw.
+            bonus_usd = allocation.crowns_to_usd(bonus[code])
             pp.vars['market_id'] = market_id
             pp.vars['market_pid'] = pid
-            pp.vars['bonus_payout'] = bonus[code]
+            pp.vars['bonus_payout'] = bonus_usd
             pp.vars['market_detail'] = detail[code]
-            pp.vars['total_payment'] = showup_fee + bonus[code]
-            pp.payoff = bonus[code]
+            pp.vars['total_payment'] = showup_fee + bonus_usd
+            pp.payoff = bonus_usd
 
     queues[treatment] = tq
     session.vars['queues'] = queues
@@ -98,9 +147,9 @@ class C(BaseConstants):
     NAME_IN_URL = 'survey'
     PLAYERS_PER_GROUP = None
     NUM_ROUNDS = 1
+    # The one and only completion code in the study, shown on ThankYou. Quiz failures and
+    # study-full arrivals are shown no code at all and asked to return their submission.
     PROLIFIC_COMPLETION_URL = 'https://app.prolific.com/submissions/complete?cc=C3DGP1B9'
-    # Optional redirect for flagged bots (e.g., Prolific screened-out URL/code).
-    PROLIFIC_BOT_REDIRECT_URL = 'https://app.prolific.com/submissions/complete?cc=C1HW4JRM'
 
 class Subsession(BaseSubsession):
     pass
@@ -170,16 +219,12 @@ class Player(BasePlayer):
         widget=widgets.RadioSelectHorizontal
     )
     
-    # Honeypot: hidden from normal users, but naive bots often fill it.
-    website = models.StringField(blank=True, initial='')
-    suspected_bot = models.BooleanField(initial=False)
-
     # --- AI-usage instrumentation. Opaque JSON written by _static/global/ai_detect.js.
     # Field-name rule (shared with the JS): 'ai_tel_' + PageClass.__name__.lower()
     ai_tel_demographics = models.LongStringField(blank=True, initial='')
 
     # Mirror of participant.vars, filled by ai_detect.mirror_to_player(). These are
-    # SOFT research flags for post-hoc exclusion -- they never feed suspected_bot.
+    # SOFT research flags for post-hoc exclusion -- nothing routes or pays on them.
     # participant.vars only reaches the "All apps" wide CSV, so mirroring here also
     # puts the numbers in the survey app's own CSV and the admin Data tab.
     ai_score = models.IntegerField(initial=0)
@@ -320,7 +365,6 @@ class Demographics(Page):
         'lgbtq', 'education', 'state', 'community', 'employment', 'income', 'politics', 'party',
         'matching_experience', 'matching_influence',
         'intergenerational_advice', 'comments',
-        'website',
         'ai_tel_demographics',
     ]
 
@@ -342,10 +386,10 @@ class Demographics(Page):
 
     @staticmethod
     def is_displayed(player: Player):
-        # Skip demographics for quiz-fails, suspected bots, and screened-out (study full).
+        # Skip demographics for quiz-fails and screened-out (study full): neither is paid,
+        # so neither is asked for further work.
         return (
             not player.participant.vars.get('failed_quiz', False)
-            and not player.participant.vars.get('suspected_bot', False)
             and not player.participant.vars.get('screened_out', False)
         )
 
@@ -356,70 +400,65 @@ class Demographics(Page):
         if player.matching_experience == 'No':
             player.matching_influence = None
 
-        honeypot_value = (player.website or '').strip()
-        is_honeypot_triggered = bool(honeypot_value)
-
-        player.suspected_bot = is_honeypot_triggered
-        player.participant.vars['suspected_bot'] = is_honeypot_triggered
-        player.participant.vars['blocked_for_bot'] = is_honeypot_triggered
-
-        if is_honeypot_triggered:
-            player.participant.vars['suspected_bot_reason'] = 'demographics_honeypot_filled'
-            player.participant.vars['suspected_bot_value'] = honeypot_value[:120]
-
-        # AI-usage telemetry. Deliberately SEPARATE from the honeypot hard block
-        # above: these are soft research flags for post-hoc exclusion only, and
-        # must never set suspected_bot. See ai_detect.py.
+        # AI-usage telemetry: soft research flags for post-hoc exclusion only. Nothing
+        # here blocks, redirects, or withholds payment. See ai_detect.py.
         ai_detect.record(player, 'survey/Demographics', player.ai_tel_demographics)
 
 
-class BotBlocked(Page):
+class QuizFailed(Page):
+    """Dead end for anyone the 4-strikes quiz rule ejected from their treatment app.
+
+    They are paid nothing, so this page shows no Prolific code of any kind -- not the completion
+    code and not a screen-out code -- and has no next button: the template asks them to return
+    the submission instead. ThankYou (the only page with the completion code) skips them as well,
+    so a hand-crafted POST past this page still cannot reach a paid code.
+
+    Do not reject these submissions. An unreturned one is left to time out -- see
+    finalize_bonuses.py.
+    """
+
     @staticmethod
     def is_displayed(player: Player):
-        return bool(player.participant.vars.get('suspected_bot', False))
+        return bool(player.participant.vars.get('failed_quiz', False))
 
     @staticmethod
     def vars_for_template(player: Player):
         ai_detect.mirror_to_player(player)
-        redirect_url = player.session.config.get(
-            'prolific_bot_redirect_url',
-            C.PROLIFIC_BOT_REDIRECT_URL,
-        ) or ''
-        return dict(redirect_url=redirect_url)
+        # Say "unpaid" explicitly rather than leaving the export columns blank.
+        player.participant.payoff = 0
+        player.participant.vars['total_payment'] = 0
+        return {}
+
 
 class ThankYou(Page):
     form_model = 'player'
 
     @staticmethod
     def is_displayed(player: Player):
-        # Screened-out arrivals stop on StudyFull: this page carries the Prolific completion
-        # code, and they are not paid.
+        # This page is the only one carrying the Prolific completion code, so everyone who
+        # is not owed payment must be excluded here: screened-out arrivals stop on StudyFull,
+        # quiz failures on QuizFailed.
         return (
-            not player.participant.vars.get('suspected_bot', False)
+            not player.participant.vars.get('failed_quiz', False)
             and not player.participant.vars.get('screened_out', False)
         )
 
     @staticmethod
     def vars_for_template(player: Player):
         participant = player.participant
-        # Mirror the AI-usage summary here too: quiz-fails skip Demographics but still
-        # reach this page.
         ai_detect.mirror_to_player(player)
-        # Reaching this page counts as study completion for router rebalancing.
+        # Reaching this page counts as study completion for router rebalancing. Quiz failures
+        # never get here, so it is never set for them -- which is correct, they did not finish.
         participant.vars['study_completed'] = True
-
-        failed_quiz = bool(participant.vars.get('failed_quiz', False))
-        usable = not failed_quiz and not participant.vars.get('suspected_bot')
 
         # Queue this completer and assemble any group of 8 that is now complete. The bonus is
         # usually still pending here (the participant's groupmates finish later); it is filled
         # in once their group closes and is exported for the manual Prolific bonus payment.
-        if usable:
-            _queue_and_group(player)
+        _queue_and_group(player)
 
         showup_fee = player.session.config['participation_fee']
         bonus = participant.vars.get('bonus_payout', None)
-        bonus_pending = usable and bonus is None
+        bonus_pending = bonus is None
         bonus_amount = bonus or 0
 
         participant.payoff = bonus_amount
@@ -428,12 +467,11 @@ class ThankYou(Page):
         return {
             'treatment': participant.vars.get('treatment', 'Unknown'),
             'winning_round': player.session.vars.get('paying_round', 1),
-            'participation_fee': showup_fee,
-            'usable': usable,
-            'failed_quiz': failed_quiz,
+            # Pre-formatted: session.config stores a float, so the raw value renders as "6.5".
+            'participation_fee': f"${showup_fee:.2f}",
             'bonus_pending': bonus_pending,
             'redemption_code': participant.label or participant.code,
         }
 
 # Make sure to add it to the sequence!
-page_sequence = [StudyFull, Demographics, BotBlocked, ThankYou]
+page_sequence = [StudyFull, Demographics, QuizFailed, ThankYou]

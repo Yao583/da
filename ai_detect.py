@@ -7,12 +7,13 @@ sys.path, so every app does a bare `import ai_detect`.
 SCOPE
 -----
 Everything here is a SOFT RESEARCH FLAG for post-hoc exclusion. Nothing here
-blocks a participant, changes their page flow, or changes their payment. The
-existing hard-block path (survey honeypot -> participant.vars['suspected_bot']
--> BotBlocked -> Prolific bot-redirect) is deliberately separate and is NOT
-wired to any signal in this module. Do not connect them: a participant who
-alt-tabs to check their email, or who drafts their answer in Notes and then
-tries to paste it, would otherwise be ejected for nothing.
+blocks a participant, changes their page flow, or changes their payment. These
+counters are now the only bot signal in the study -- the Demographics honeypot
+and its BotBlocked hard-block path have been removed -- and they must stay soft.
+Do not wire them to the one remaining ejection path (failed_quiz -> QuizFailed ->
+unpaid, asked to return the submission): a participant who alt-tabs to check
+their email, or who drafts their answer in Notes and then tries to paste it,
+would otherwise lose their entire payment for nothing.
 
 Paste is now cancelled client-side (see _static/global/paste_guard.js), so the
 paste counters below record ATTEMPTS. That makes them sharper, not decisive:

@@ -3,34 +3,34 @@ from os import environ
 SESSION_CONFIGS = [
     dict(
         name='prolific_experiment',
-        # --- FULL STUDY: all four treatments ---------------------------------
+        # --- TWO-ARM STUDY: da and agent_da ----------------------------------
         # The treatment list lives in two places and they must be changed together:
         # app_sequence below and allocation.TREATMENTS. The router raises if it draws
-        # a treatment that is not in app_sequence.
-        display_name="Prolific study: da / boston / agent_da / agent_boston",
+        # a treatment that is not in app_sequence, so a mismatch is a 500 mid-session
+        # rather than a startup error. boston / agent_boston are not run here: leaving
+        # them in app_sequence would also cost 5 unused Player rows each per slot.
+        display_name="Prolific study: da / agent_da",
         # Participant SLOTS, not the recruitment target. Every arrival burns one --
-        # finishers, quiz-fails, silent dropouts, and everyone screened out after the
+        # finishers, quiz-fails, silent dropouts, and everyone turned away after the
         # study fills. Once they run out oTree answers a bare "Session is full." 404
         # instead of the survey app's StudyFull page, so keep generous headroom: the
-        # da-only pilot burned 104 slots for 48 usable finishers (2.17x). 32 usable
-        # therefore needs ~70, and the rest absorbs screen-out arrivals.
+        # da-only pilot burned 104 slots for 48 usable finishers (2.17x). The 1,504
+        # usable finishers targeted below therefore need ~3,300; 8,000 is the headroom
+        # chosen for this run. Note the router rescans every slot in the session on each
+        # arrival, so oversizing costs speed, not just database rows.
         # NOTE: for a room session this only prefills the create-session form; the
         # number you type there is what counts.
-        num_demo_participants=11000,
+        num_demo_participants=5000,
         # Groups of 8 formed per treatment. Bucket targets are 3M/M/3M/M (A_normal/A_lowest/
         # B_normal/B_lowest), so each treatment needs 8*M usable finishers. Watch the router's
         # admin report and keep Prolific places open until every bucket's "remaining" hits 0.
-        # Here: 8 * 1 market * 4 treatments = 32 usable, i.e. targets of 3/1/3/1 per treatment.
-        # At M=1 there is no slack -- A_lowest and B_lowest have a target of ONE, so a single
-        # missing finisher leaves that whole arm without an assembled market.
-        markets_per_treatment=80,
-        prolific_bot_redirect_url='https://app.prolific.com/submissions/complete?cc=C1HW4JRM',
+        # Here: 8 * 94 markets = 752 usable per treatment, i.e. per-treatment targets of
+        # 282/94/282/94, and 1,504 usable finishers across the two arms.
+        markets_per_treatment=94,
         app_sequence=[
             'treatment_router',
             'da',
-            'boston',
             'agent_da',
-            'agent_boston',
             'survey',
         ],
     ),
@@ -49,7 +49,7 @@ ROOMS = [
 # e.g. self.session.config['participation_fee']
 
 SESSION_CONFIG_DEFAULTS = dict(
-    real_world_currency_per_point=1.00, participation_fee=2.00, doc=""
+    real_world_currency_per_point=1.00, participation_fee=6.50, doc=""
 )
 
 PARTICIPANT_FIELDS = [
@@ -71,7 +71,6 @@ PARTICIPANT_FIELDS = [
     'market_queued',   # internal: queued for grouping (assembled at most once)
     'bonus_payout',
     'failed_quiz',
-    'suspected_bot',
     'study_completed',
     'e1_schedule',
     'e1_successful',
@@ -83,7 +82,7 @@ PARTICIPANT_FIELDS = [
     'e2_player_prefs',
     'total_payment',
     # --- AI-usage instrumentation (soft research flags, see ai_detect.py).
-    # Written by ai_detect.record(); never feeds the suspected_bot hard block.
+    # Written by ai_detect.record(); for post-hoc exclusion only, nothing routes on it.
     'ai_score', 'ai_flags',
     'ai_blur', 'ai_hid', 'ai_hid_ms', 'ai_hid_max',
     'ai_copy', 'ai_cut', 'ai_copy_ch', 'ai_copy_sample',

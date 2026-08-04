@@ -59,9 +59,9 @@ def _bucket_counts(session):
             continue
 
         if pp.vars.get('study_completed'):
-            # Quiz failures and flagged bots reach the end but their data is unusable, so
-            # they must not fill up a bucket's quota.
-            if not pp.vars.get('failed_quiz') and not pp.vars.get('suspected_bot'):
+            # Belt and braces: quiz failures are ejected before ThankYou, so they never
+            # get study_completed in the first place and cannot fill up a bucket's quota.
+            if not pp.vars.get('failed_quiz'):
                 completed[treatment][bucket] += 1
         else:
             last_seen = getattr(pp, '_last_request_timestamp', None) or 0

@@ -19,15 +19,6 @@
         .slider-readout { margin-top: 6px; font-size: 14px; color: #6c757d; }
         .slider-readout.answered { color: #212529; font-weight: bold; }
         .matching-na { font-size: 15px; color: #495057; font-style: italic; }
-        /* Honeypot field is present in HTML but visually removed for humans. */
-        .honeypot-wrap {
-            position: absolute;
-            left: -10000px;
-            top: auto;
-            width: 1px;
-            height: 1px;
-            overflow: hidden;
-        }
     </style>
 
     <div class="card bg-light mb-4">
@@ -104,18 +95,6 @@
         </p>
         {{ formfield 'intergenerational_advice' }}
         {{ formfield 'comments' }}
-    </div>
-
-    <div class="honeypot-wrap" aria-hidden="true">
-        <label for="id_website">Website (leave blank)</label>
-        <input
-            type="text"
-            id="id_website"
-            name="website"
-            value=""
-            tabindex="-1"
-            autocomplete="off"
-        >
     </div>
 
     <div style="margin-top: 40px; text-align: right;">

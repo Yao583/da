@@ -11,18 +11,13 @@
             <div class="card-body">
                 <h5 class="card-title">Your Earnings</h5>
                 <p class="card-text mb-1">Base Payment: <strong>{{ participation_fee }}</strong></p>
-                {{ if usable }}
-                <p class="card-text mb-1">Bonus (from the randomly selected round): <strong>calculated after the study closes</strong></p>
+                <p class="card-text mb-1">Bonus (from the randomly selected round): <strong>paid once your group is complete</strong></p>
                 <p style="font-size: 14px; color: #6c757d;">
-                    <em>Your prize allocation is determined once your group of participants is
-                    complete. Your bonus will then be paid via Prolific within 48 hours, on top of
-                    the base payment.</em>
+                    <em>Your prize allocation is determined as soon as your group of participants
+                    is complete. The Crowns you earn are converted at $0.50 each and paid as a
+                    bonus via Prolific, on top of the base payment. If your group is still filling
+                    when the study closes, you will be paid then instead.</em>
                 </p>
-                {{ else }}
-                <p style="font-size: 14px; color: #6c757d;">
-                    <em>You will receive the base payment via Prolific.</em>
-                </p>
-                {{ endif }}
             </div>
         </div>
 

@@ -57,13 +57,13 @@
         <tr>
             <th>
                 {{ if C.ALIGNED }}
-                Value to Any Participant
+                Value to Any Participant (Crowns)
                 {{ else }}
-                Value to You
+                Value to You (Crowns)
                 {{ endif }}
             </th>
             {{ for row in prize_rows }}
-            <td>${{ row.value }}</td>
+            <td>{{ row.value }}</td>
             {{ endfor }}
         </tr>
         <tr id="status-if-row">
@@ -75,6 +75,7 @@
         </tbody>
     </table>
 </div>
+    <p style="margin-top: 8px; font-size: 0.9em; color: #6c757d;">Each Crown is worth <strong>$0.50</strong>.</p>
 
 <div style="margin: 15px 0; padding: 15px; border: 1px solid #ced4da; border-radius: 8px; background-color: #f8f9fa;">
     <p class="justify" style="margin-bottom: 0;">Recall that if you are unpaired from a prize, (i) you can no longer be paired to any prizes that you have been unpaired from and (ii) you cannot be paired with prizes that have been paired with other participants. If you are unpaired, the only prizes that remain available are prizes that have not yet been paired with anybody.</p>
@@ -122,13 +123,13 @@
       </div>
       <div class="modal-body">
         <p class="justify">Welcome.</p>
-        <p class="justify">This study will consist of five periods. At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+        <p class="justify">This study will consist of five periods. At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $6.50 plus the earnings of the selected period, converted into dollars at $0.50 per Crown.</p>
 
         <p class="heading">Your Task</p>
         <p class="justify">Below are the instructions for a game you are going to play. In case it's helpful to understand the instructions better, in the end, your task in the game is to submit a ranking of potential prizes you can win. All you need to do is to figure out which prizes to rank, and the order in which to rank them.</p>
 
         <p class="heading">The Basics</p>
-        <p class="justify">In this study, you and {{ nr_others }} other participants are in an experiment. Each participant will eventually receive one of {{ players_per_group }} prizes. Each prize is worth money, but might be worth a different amount of money for each participant.</p>
+        <p class="justify">In this study, you and {{ nr_others }} other participants are in an experiment. Each participant will eventually receive one of {{ players_per_group }} prizes. Each prize is worth a number of <strong>Crowns</strong>, the currency used in this study, but might be worth a different number of Crowns for each participant. Each Crown is worth $0.50 of real money.</p>
         <p class="justify">You and the other participants will each rank prizes in any order you wish. Then, the interface uses an <strong>allocation process</strong> that uses these rankings to allocate the prizes, one for each participant.</p>
         <p class="justify">The allocation process attempts to give each participant a prize that they ranked higher rather than a prize that they ranked lower. However, this is not always possible, since the allocation process must take into account the rankings of all participants.</p>
 
@@ -162,19 +163,20 @@
         </thead>
         <tbody>
         <tr>
-        <th>Value to You</th>
-        <td>$15</td>
-        <td>$13</td>
-        <td>$7</td>
-        <td>$5</td>
-        <td>$3</td>
-        <td>$1</td>
+        <th>Value to You (Crowns)</th>
+        <td>15</td>
+        <td>13</td>
+        <td>7</td>
+        <td>5</td>
+        <td>3</td>
+        <td>1</td>
         </tr>
         </tbody>
         </table>
         </div>
+        <p style="margin-top: 8px; font-size: 0.9em; color: #6c757d;">Each Crown is worth <strong>$0.50</strong>.</p>
 
-        <p class="justify">Under each prize A, B, C, D, E, or F, this participant from Group A can see how much money each prize would add to their earnings. Specifically, if this participant ends up receiving prize A, it adds $15 to their earnings. If this participant ends up receiving prize B, it adds $13 to their earnings. Any participant from Group A will value Prize A at $15 and prize B at $13, but the value of the next four prizes are specific to this participant and may be different to other participants. For instance, this participant adds $7 to their earnings if they end up receiving Prize D and so on.</p>
+        <p class="justify">Under each prize A, B, C, D, E, or F, this participant from Group A can see how many Crowns each prize would add to their earnings. Specifically, if this participant ends up receiving prize A, it adds 15 Crowns to their earnings. If this participant ends up receiving prize B, it adds 13 Crowns to their earnings. Any participant from Group A will value Prize A at 15 Crowns and prize B at 13 Crowns, but the value of the next four prizes are specific to this participant and may be different to other participants. For instance, this participant adds 7 Crowns to their earnings if they end up receiving Prize D and so on.</p>
         <p class="justify">The number between parentheses next to the letter indicating each prize lets you know how many prizes with that letter are available. Specifically, there are two A prizes available, two B prizes available, but only one C, one D, one E and one F.</p>
 
         <p class="justify">We also show an example for a Group B participant that may see Prizes as in this table:</p>
@@ -193,18 +195,19 @@
         </thead>
         <tbody>
         <tr>
-        <th>Value to You</th>
-        <td>$15</td>
-        <td>$13</td>
-        <td>$7</td>
-        <td>$5</td>
-        <td>$3</td>
-        <td>$1</td>
+        <th>Value to You (Crowns)</th>
+        <td>15</td>
+        <td>13</td>
+        <td>7</td>
+        <td>5</td>
+        <td>3</td>
+        <td>1</td>
         </tr>
         </tbody>
         </table>
         </div>
-        <p class="justify">Any participant from Group B will value Prize B at $15 and prize A at $13, but the value of the next four prizes are specific to this participant and may be different to other participants.</p>
+        <p style="margin-top: 8px; font-size: 0.9em; color: #6c757d;">Each Crown is worth <strong>$0.50</strong>.</p>
+        <p class="justify">Any participant from Group B will value Prize B at 15 Crowns and prize A at 13 Crowns, but the value of the next four prizes are specific to this participant and may be different to other participants.</p>
         <p class="justify">You and the other participants <strong>cannot affect the monetary value of prizes</strong>.</p>
 
         <p class="heading">Prize Priorities</p>
@@ -265,7 +268,7 @@
 
         <p class="heading">Summary</p>
         <p class="justify">This study consists of five periods. In each period, how much each prize pays to you is randomly determined. Make sure that you read the table carefully.</p>
-        <p class="justify">At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $2 plus the earnings of the selected period.</p>
+        <p class="justify">At the end of the study, one of the five periods will be randomly selected with equal chance. Your payment when you complete the study consists of $6.50 plus the earnings of the selected period, converted into dollars at $0.50 per Crown.</p>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-primary" data-bs-dismiss="modal">Back to Decision</button>

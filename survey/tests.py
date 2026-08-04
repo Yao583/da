@@ -1,5 +1,5 @@
 from otree.api import Bot, Submission, SubmissionMustFail
-from . import Demographics, StudyFull, ThankYou
+from . import Demographics, QuizFailed, StudyFull, ThankYou
 
 # Must clear ai_detect.MIN_ADVICE_WORDS (50). This one is 77 words.
 ADVICE = (
@@ -17,7 +17,6 @@ DEMO = dict(
     politics='Moderate, middle of the road', party='A Democrat',
     matching_experience='Yes', matching_influence=6,
     intergenerational_advice=ADVICE, comments='',
-    website='',  # honeypot left empty -> not flagged as bot
 )
 
 # Locks in the 50-word floor enforced by Demographics.error_message.
@@ -41,12 +40,16 @@ class PlayerBot(Bot):
             assert self.participant.payoff == 0
             return
 
-        # Ejected from their treatment by the 4-strikes quiz rule: Demographics skips them
-        # too, so they go straight to ThankYou for the base payment. They still reach the
-        # end, but the router must not count them towards a bucket's quota.
+        # Ejected from their treatment by the 4-strikes quiz rule. Demographics skips them
+        # and ThankYou -- the only page with the completion code -- now skips them too, so they
+        # dead-end on QuizFailed with no code at all, asked to return the submission, paid nothing.
+        # study_completed must stay unset: they did not complete, and the router counts
+        # bucket quotas off that flag.
         if self.participant.vars.get('failed_quiz'):
-            yield Submission(ThankYou, check_html=False)
-            assert self.participant.vars.get('study_completed') is True
+            yield Submission(QuizFailed, check_html=False)
+            assert not self.participant.vars.get('study_completed')
+            assert self.participant.vars.get('total_payment') == 0
+            assert self.participant.payoff == 0
             return
 
         yield SubmissionMustFail(Demographics, SHORT, check_html=False)

@@ -10,6 +10,13 @@ Nothing in here reads the retired lab seed CSVs (``boston_seed*.csv``): a market
 generatable. A player is Group A (values ``[15, 13, ...]``) or Group B (``[13, 15, ...]``),
 and prizes C-F get a random permutation of ``{1, 3, 5, 7}``. Priorities are a random common
 order over the 8 players, which makes DA equivalent to serial dictatorship.
+
+UNITS: every valuation and payoff in this module is in **Crowns**, the experimental currency
+shown to participants. Crowns become dollars at ``CROWN_VALUE_USD`` and nowhere else in here;
+``survey/__init__.py`` calls ``crowns_to_usd`` at the single point where a market bonus is
+written to ``participant.vars['bonus_payout']``, which is the USD figure the payment scripts
+pay out. ``market_vals`` and ``market_detail`` stay in Crowns so the export matches what the
+participant actually saw on screen.
 """
 import random
 
@@ -18,14 +25,28 @@ NR_PRIZES = 6
 NUM_PLAYERS = 8
 NUM_ROUNDS = 5
 CAPACITIES = [2, 2, 1, 1, 1, 1]          # sums to 8 -> exactly one seat per player
-CF_VALUES = [1, 3, 5, 7]                 # idiosyncratic values for prizes C, D, E, F
-AB_HIGH, AB_LOW = 15, 13                 # own-group prize / other-group prize
+CF_VALUES = [1, 3, 5, 7]                 # idiosyncratic values for prizes C, D, E, F (Crowns)
+AB_HIGH, AB_LOW = 15, 13                 # own-group prize / other-group prize (Crowns)
 NO_PRIZE_TOKEN = '0'
 
-# Must stay in sync with settings.py's app_sequence: the treatment_router draws from this
-# list and raises if the drawn app is not in the session's app_sequence. MECHANISMS below
-# always keeps all four entries; dropping a treatment is a routing change only.
-TREATMENTS = ['da', 'boston', 'agent_da', 'agent_boston']
+# --- Currency ---------------------------------------------------------------
+# Participants see Crowns; Prolific is paid in dollars. The instructions quote this rate
+# verbatim ("Each Crown is worth $0.50"), so changing it here means changing the templates
+# in the four treatment apps too.
+CROWN_VALUE_USD = 0.5
+
+
+def crowns_to_usd(crowns):
+    """Crowns -> dollars, rounded to the cent Prolific will actually be asked to pay."""
+    return round((crowns or 0) * CROWN_VALUE_USD, 2)
+
+# The treatments actually running. Must stay in sync with settings.py's app_sequence: the
+# treatment_router draws from this list and raises if the drawn app is not in the session's
+# app_sequence, so trimming one list without the other 500s participants mid-session.
+# MECHANISMS below stays a full registry of all four apps; dropping a treatment from a run is
+# a routing change only. Restore the full list before re-processing an older four-arm export:
+# reassemble.py filters on it and would silently drop the boston rows.
+TREATMENTS = ['da', 'agent_da']
 
 # --- Completion buckets -----------------------------------------------------
 # Each usable finisher lands in one bucket. A market is assembled from
@@ -191,6 +212,7 @@ def compute_market_bonuses(treatment, members, paying_round, seed):
 
     Returns ``(bonus_by_code, detail_by_code)`` where ``bonus`` is the payoff in
     ``paying_round`` and ``detail`` is ``{code: {round_str: {'prize': int, 'payoff': int}}}``.
+    Both are in **Crowns**, not dollars -- the caller converts with ``crowns_to_usd``.
     Deterministic given ``seed`` (priority orders and random fills are drawn from it).
     """
     rng = random.Random(seed)
